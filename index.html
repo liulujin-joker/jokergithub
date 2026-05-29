@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小V影像助手 - vivo AI 智能体 | AIGC创新赛</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #12121a;
+            --border: #1e1e30;
+            --accent: #6366f1;
+            --accent2: #8b5cf6;
+            --text: #e2e2f0;
+            --text2: #9898b0;
+            --green: #22c55e;
+            --warn: #f59e0b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, #0c0c1d 0%, #1a1040 40%, #0d1225 100%);
+            padding: 80px 20px 60px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at 30% 50%, rgba(99,102,241,0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 30%, rgba(139,92,246,0.06) 0%, transparent 50%);
+            animation: float 20s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(2%, -2%) rotate(1deg); }
+            66% { transform: translate(-2%, 1%) rotate(-1deg); }
+        }
+        .hero-content { position: relative; z-index: 1; }
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            background: linear-gradient(135deg, #c4b5fd, #818cf8, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+        .hero .subtitle {
+            font-size: 1.15rem;
+            color: var(--text2);
+            max-width: 600px;
+            margin: 0 auto 24px;
+        }
+        .hero .badge {
+            display: inline-block;
+            padding: 6px 18px;
+            border-radius: 20px;
+            background: rgba(99,102,241,0.15);
+            border: 1px solid rgba(99,102,241,0.3);
+            font-size: 0.85rem;
+            color: #a5b4fc;
+            margin: 6px;
+        }
+        /* Section */
+        .section {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 50px 24px;
+        }
+        .section h2 {
+            font-size: 1.6rem;
+            margin-bottom: 24px;
+            color: #c4b5fd;
+            border-left: 3px solid var(--accent);
+            padding-left: 14px;
+        }
+        /* Architecture Diagram */
+        .arch-flow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            align-items: center;
+            margin: 24px 0;
+        }
+        .arch-node {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 22px;
+            text-align: center;
+            min-width: 100px;
+            transition: all 0.3s;
+        }
+        .arch-node:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(99,102,241,0.15);
+            transform: translateY(-2px);
+        }
+        .arch-node .n-icon { font-size: 1.6rem; }
+        .arch-node .n-title { font-weight: 600; font-size: 0.9rem; margin-top: 6px; }
+        .arch-node .n-desc { font-size: 0.75rem; color: var(--text2); margin-top: 2px; }
+        .arch-arrow { font-size: 1.3rem; color: var(--accent); }
+        /* Tool Grid */
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .tool-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        .tool-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .tool-card .t-emoji { font-size: 1.8rem; margin-bottom: 8px; }
+        .tool-card .t-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 6px; }
+        .tool-card .t-desc { font-size: 0.82rem; color: var(--text2); }
+        .tool-card .t-tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            background: rgba(99,102,241,0.1);
+            color: #a5b4fc;
+            margin-top: 10px;
+        }
+        /* Code Block */
+        .code-block {
+            background: #0d0d1a;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px 24px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            line-height: 1.8;
+            color: #c9d1d9;
+        }
+        .code-block .kw { color: #ff7b72; }
+        .code-block .str { color: #a5d6ff; }
+        .code-block .cmt { color: #6e7681; }
+        .code-block .fn { color: #d2a8ff; }
+        /* Demo */
+        .demo-chat {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        .demo-msg {
+            margin-bottom: 14px;
+            display: flex;
+            gap: 10px;
+        }
+        .demo-msg.user { justify-content: flex-end; }
+        .demo-msg .bubble {
+            max-width: 80%;
+            padding: 10px 16px;
+            border-radius: 14px;
+            font-size: 0.88rem;
+        }
+        .demo-msg.user .bubble {
+            background: var(--accent);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .demo-msg.agent .bubble {
+            background: #1a1a2e;
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+        }
+        .demo-msg .label {
+            font-size: 0.7rem;
+            color: var(--text2);
+            margin-bottom: 4px;
+        }
+        /* Stats */
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 28px;
+            text-align: center;
+            min-width: 140px;
+        }
+        .stat-card .s-num {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #818cf8, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-card .s-label { font-size: 0.8rem; color: var(--text2); margin-top: 4px; }
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text2);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border);
+        }
+        footer a { color: #a5b4fc; text-decoration: none; }
+        .run-btn {
+            display: inline-block;
+            padding: 12px 28px;
+            border-radius: 8px;
+            background: var(--accent);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 8px;
+            transition: all 0.3s;
+        }
+        .run-btn:hover { background: #4f46e5; transform: translateY(-1px); }
+        .run-btn.ghost {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: #a5b4fc;
+        }
+        @media (max-width: 600px) {
+            .arch-flow { flex-direction: column; }
+            .arch-arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-content">
+        <h1>🤖 小V影像助手</h1>
+        <p class="subtitle">
+            手机AI助手 · 未来AI影像体验设计<br>
+            从"用户操作工具"到"AI理解意图并主动服务"
+        </p>
+        <span class="badge">🏆 中国高校计算机大赛 · AIGC创新赛</span>
+        <span class="badge">📱 手机AI助手赛道</span>
+        <span class="badge">🎨 未来AI影像体验设计</span>
+        <br><br>
+        <a href="https://github.com/liulujin-joker/jokergithub/tree/master/vivo-ai-imaging-agent" class="run-btn">📂 查看源码</a>
+        <a href="#demo" class="run-btn ghost">▶ 在线演示</a>
+    </div>
+</section>
+
+<!-- 架构 -->
+<section class="section">
+    <h2>🧠 智能体架构</h2>
+    <p style="color:var(--text2);margin-bottom:20px;">完整 Think → Plan → Execute → Reflect 认知链路</p>
+
+    <div class="arch-flow">
+        <div class="arch-node">
+            <div class="n-icon">💬</div>
+            <div class="n-title">用户输入</div>
+            <div class="n-desc">自然语言/图片</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+            <div class="n-icon">🧠</div>
+            <div class="n-title">Think</div>
+            <div class="n-desc">意图理解</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+            <div class="n-icon">📋</div>
+            <div class="n-title">Plan</div>
+            <div class="n-desc">工具编排</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+            <div class="n-icon">⚡</div>
+            <div class="n-title">Execute</div>
+            <div class="n-desc">工具执行</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+            <div class="n-icon">✨</div>
+            <div class="n-title">Reflect</div>
+            <div class="n-desc">反思回复</div>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat-card"><div class="s-num">10</div><div class="s-label">AI影像工具</div></div>
+        <div class="stat-card"><div class="s-num">10</div><div class="s-label">意图类型</div></div>
+        <div class="stat-card"><div class="s-num">19</div><div class="s-label">Python模块</div></div>
+        <div class="stat-card"><div class="s-num">1700+</div><div class="s-label">行代码</div></div>
+        <div class="stat-card"><div class="s-num">17/17</div><div class="s-label">意图测试通过</div></div>
+    </div>
+</section>
+
+<!-- 工具矩阵 -->
+<section class="section" style="background:rgba(99,102,241,0.02);">
+    <h2>🛠️ 10大AI影像工具</h2>
+    <div class="tool-grid">
+        <div class="tool-card">
+            <div class="t-emoji">📸</div>
+            <div class="t-name">photo_enhance</div>
+            <div class="t-desc">智能画质增强、超分辨率重建、HDR优化、AI降噪</div>
+            <span class="t-tag">增强类</span>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">🎨</div>
+            <div class="t-name">style_transfer</div>
+            <div class="t-desc">20+艺术风格转换：油画、水彩、动漫、赛博朋克、胶片复古...</div>
+            <span class="t-tag">创意类</span>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">📐</div>
+            <div class="t-name">composition_guide</div>
+            <div class="t-desc">实时构图分析：三分法、引导线、对称、黄金螺旋 + 调整建议</div>
+            <span class="t-tag">拍摄类</span>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">🧹</div>
+            <div class="t-name">object_remove</div>
+            <div class="t-desc">智能消除路人/杂物/水印，AI自动填充背景</div>
+            <span class="t-tag">编辑类</span>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">✨</div>
+            <div class="t-name">portrait_beautify</div>
+            <div class="t-desc">自然美颜、智能美妆、瘦脸大眼、纹理保留98%</div>
+            <span class="t-tag">人像类</span>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">🔍</div>
+            <div class="t-name">scene_recognize</div>
+            <div class="t-desc">30+场景识别，自动推荐最佳拍摄参数和滤镜</div>
+            <span class="t-tag">识别类</span>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">🎬</div>
+            <div class="t-name">color_grading</div>
+            <div class="t-desc">电影级调色、季节风格、情绪色彩、自动白平衡</div>
+            <span class="t-tag">调色类</span>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">✂️</div>
+            <div class="t-name">smart_crop</div>
+            <div class="t-desc">AI智能裁剪、多比例输出、主体识别、构图优化</div>
+            <span class="t-tag">编辑类</span>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">🔲</div>
+            <div class="t-name">ai_expand</div>
+            <div class="t-desc">AI画面扩展、场景补全、镜头拉远效果</div>
+            <span class="t-tag">创意类</span>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">🎬</div>
+            <div class="t-name">motion_photo</div>
+            <div class="t-desc">静态→动态：3D视差、cinemagraph、自然动态元素</div>
+            <span class="t-tag">创意类</span>
+        </div>
+    </div>
+</section>
+
+<!-- 演示 -->
+<section class="section" id="demo">
+    <h2>💬 交互演示</h2>
+    <div class="demo-chat">
+        <div class="demo-msg user">
+            <div>
+                <div class="label" style="text-align:right;">👤 用户</div>
+                <div class="bubble">我在拍城市夜景，帮我看看构图怎么样</div>
+            </div>
+        </div>
+        <div class="demo-msg agent">
+            <div>
+                <div class="label">🤖 小V</div>
+                <div class="bubble">
+                    📐 构图分析完成<br>
+                    • 三分法 (85分): 主体位于右上交点<br>
+                    • 引导线 (72分): 可利用栏杆引导视线<br>
+                    💡 建议: 轻微左移相机，降低机位约10cm
+                </div>
+            </div>
+        </div>
+        <div class="demo-msg user">
+            <div>
+                <div class="label" style="text-align:right;">👤 用户</div>
+                <div class="bubble">[发送照片] 帮我把背景里的路人都消掉</div>
+            </div>
+        </div>
+        <div class="demo-msg agent">
+            <div>
+                <div class="label">🤖 小V</div>
+                <div class="bubble">
+                    🧹 物体消除完成<br>
+                    已移除: 路人甲, 垃圾桶, 地面杂物<br>
+                    💡 消除后画面更干净了！需要裁剪构图吗？
+                </div>
+            </div>
+        </div>
+        <div class="demo-msg user">
+            <div>
+                <div class="label" style="text-align:right;">👤 用户</div>
+                <div class="bubble">帮我把这张照片变成赛博朋克风格</div>
+            </div>
+        </div>
+        <div class="demo-msg agent">
+            <div>
+                <div class="label">🤖 小V</div>
+                <div class="bubble">
+                    🎨 风格迁移完成 → 赛博朋克 (强度: 0.7)<br>
+                    💡 想要更精准的效果？试试调整风格强度参数
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 快速开始 -->
+<section class="section">
+    <h2>🚀 快速开始</h2>
+    <div class="code-block">
+<span class="cmt"># 1. 克隆仓库</span>
+<span class="kw">git clone</span> https://github.com/liulujin-joker/jokergithub.git
+<span class="kw">cd</span> jokergithub/vivo-ai-imaging-agent
+
+<span class="cmt"># 2. 安装依赖</span>
+<span class="kw">pip install</span> -r requirements.txt
+
+<span class="cmt"># 3. 运行演示</span>
+<span class="kw">python</span> <span class="fn">main.py</span> --demo
+
+<span class="cmt"># 4. 交互对话</span>
+<span class="kw">python</span> <span class="fn">main.py</span>
+
+<span class="cmt"># 5. 单次查询</span>
+<span class="kw">python</span> <span class="fn">main.py</span> --query <span class="str">"帮我把照片变清晰"</span>
+    </div>
+</section>
+
+<!-- 项目结构 -->
+<section class="section">
+    <h2>📁 项目结构</h2>
+    <div class="code-block">
+vivo-ai-imaging-agent/
+├── <span class="fn">main.py</span>              <span class="cmt"># 👈 智能体主体入口 VivoImagingAgent</span>
+├── requirements.txt
+├── config/
+│   └── settings.py         <span class="cmt"># 模型/工具/记忆 全配置</span>
+├── src/
+│   ├── agent/               <span class="cmt"># 智能体核心</span>
+│   │   ├── planner.py       <span class="cmt"># 规划器 Think-Plan-Reflect</span>
+│   │   ├── executor.py      <span class="cmt"># 执行器</span>
+│   │   └── intent_parser.py <span class="cmt"># 意图解析器 10种意图</span>
+│   ├── tools/               <span class="cmt"># 工具系统</span>
+│   │   ├── tool_registry.py <span class="cmt"># 插件化注册中心</span>
+│   │   └── imaging_tools.py <span class="cmt"># 10个AI影像工具</span>
+│   ├── memory/              <span class="cmt"># 记忆系统</span>
+│   │   └── memory_manager.py <span class="cmt"># 短期+长期双记忆</span>
+│   ├── models/schemas.py    <span class="cmt"># 数据模型</span>
+│   └── utils/               <span class="cmt"># 日志/图像工具</span>
+└── docs/DESIGN.md           <span class="cmt"># 完整设计文档</span>
+    </div>
+</section>
+
+<!-- 创新点 -->
+<section class="section">
+    <h2>💡 核心创新</h2>
+    <div class="tool-grid">
+        <div class="tool-card">
+            <div class="t-emoji">🎯</div>
+            <div class="t-name">意图驱动的工具编排</div>
+            <div class="t-desc">用户说人话，Agent自动理解意图，智能编排多个AI工具完成复杂任务</div>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">🔌</div>
+            <div class="t-name">插件化工具系统</div>
+            <div class="t-desc">新工具零成本接入，继承 BaseTool + JSON Schema 自描述，LLM自动理解</div>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">🧠</div>
+            <div class="t-name">双记忆个性化</div>
+            <div class="t-desc">短期记忆保持对话连贯 + 长期记忆学习用户偏好，越用越懂你</div>
+        </div>
+        <div class="tool-card">
+            <div class="t-emoji">🔒</div>
+            <div class="t-name">端侧优先隐私设计</div>
+            <div class="t-desc">敏感数据端侧处理，记忆本地存储，用户数据不出设备</div>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <p>🏆 中国高校计算机大赛 · AIGC创新赛 | 赛道：手机AI助手，未来AI影像体验设计</p>
+    <p style="margin-top:8px;">
+        <a href="https://github.com/liulujin-joker/jokergithub">📂 GitHub</a> ·
+        <a href="https://aigc.vivo.com.cn/">🌐 vivo AIGC竞赛官网</a>
+    </p>
+    <p style="margin-top:6px;font-size:0.7rem;">2026 © AIGC Innovation Team</p>
+</footer>
+
+</body>
+</html>

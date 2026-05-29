@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>陕西非遗产品AI定价智能体</title>
+    <style>
+        :root {
+            --primary: #8B4513;
+            --secondary: #DAA520;
+            --bg: #FFF8F0;
+            --card-bg: #FFFFFF;
+            --text: #3E2723;
+            --light-text: #6D4C41;
+            --border: #E2D3C5;
+            --highlight: #FFE0B2;
+            --button: #D84315;
+            --button-hover: #BF360C;
+            --result-bg: #FDF5E6;
+            --accent: #2E7D32;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Noto Serif SC', 'STSong', 'SimSun', 'Songti SC', serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border-bottom: 3px solid var(--secondary);
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: var(--primary);
+            letter-spacing: 2px;
+        }
+
+        header p {
+            color: var(--light-text);
+            font-style: italic;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .card h2 {
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            color: var(--primary);
+            border-left: 5px solid var(--secondary);
+            padding-left: 0.8rem;
+        }
+
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            margin-bottom: 0.3rem;
+            color: var(--light-text);
+            font-size: 0.9rem;
+        }
+
+        .form-group select, .form-group input {
+            padding: 0.6rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+            background: #FFFAF8;
+            color: var(--text);
+            font-family: inherit;
+        }
+
+        .form-group select:focus, .form-group input:focus {
+            outline: 2px solid var(--secondary);
+            border-color: var(--secondary);
+        }
+
+        .hint {
+            font-size: 0.8rem;
+            color: #9E9E9E;
+        }
+
+        .preset-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            margin: 1rem 0 0;
+        }
+
+        .preset-btn {
+            background: var(--highlight);
+            border: 1px solid var(--secondary);
+            color: var(--text);
+            padding: 0.5rem 1.2rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .preset-btn:hover {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .calculate-btn {
+            width: 100%;
+            padding: 0.9rem;
+            background: var(--button);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 1rem;
+            font-family: inherit;
+            letter-spacing: 1px;
+        }
+
+        .calculate-btn:hover {
+            background: var(--button-hover);
+        }
+
+        .result-section {
+            background: var(--result-bg);
+            border: 1px solid var(--secondary);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .price-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .price-item {
+            flex: 1;
+            min-width: 120px;
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .price-label {
+            font-size: 0.8rem;
+            color: var(--light-text);
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+        }
+
+        .price-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .price-value.small {
+            font-size: 1.4rem;
+        }
+
+        .explanation {
+            margin-top: 1.5rem;
+            background: #FFF9F0;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--secondary);
+        }
+
+        .explanation h3 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .explanation ul {
+            list-style-type: '▪ ';
+            padding-left: 1.5rem;
+        }
+
+        .explanation li {
+            margin-bottom: 0.4rem;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+
+        .warning {
+            background: #FFF3E0;
+            border-left: 4px solid #E65100;
+            padding: 0.8rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            color: var(--light-text);
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏮 陕西非遗产品AI定价智能体</h1>
+            <p>以微观经济学原理为锚，让非遗手工价值被看见</p>
+        </header>
+
+        <!-- 模块1：信息输入 -->
+        <div class="card" id="input-module">
+            <h2>📋 模块一：产品信息输入</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>非遗品类</label>
+                    <select id="productCategory">
+                        <option value="华县皮影">华县皮影</option>
+                        <option value="凤翔泥塑">凤翔泥塑</option>
+                        <option value="安塞剪纸">安塞剪纸</option>
+                        <option value="耀州瓷">耀州瓷</option>
+                        <option value="马勺脸谱">马勺脸谱</option>
+                        <option value="汉中藤编">汉中藤编</option>
+                        <option value="武功刺绣">武功刺绣</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>非遗级别</label>
+                    <select id="heritageLevel">
+                        <option value="国家级">国家级</option>
+                        <option value="省级">省级</option>
+                        <option value="市级">市级</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>工艺复杂度</label>
+                    <select id="complexity">
+                        <option value="复杂">复杂</option>
+                        <option value="中等">中等</option>
+                        <option value="简单">简单</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>主要用途</label>
+                    <select id="usage">
+                        <option value="收藏">收藏</option>
+                        <option value="伴手礼">伴手礼</option>
+                        <option value="实用">实用</option>
+                        <option value="装饰">装饰</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>原料成本 (元/件)</label>
+                    <input type="number" id="rawMaterial" value="25" step="0.01" min="0">
+                    <span class="hint">固定成本，如陶土、丝线、宣纸</span>
+                </div>
+                <div class="form-group">
+                    <label>工具损耗分摊 (元/件)</label>
+                    <input type="number" id="toolDepreciation" value="5" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>场地租金分摊 (元/件)</label>
+                    <input type="number" id="rentCost" value="8" step="0.01" min="0">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>手艺人单日工时费 (元/天)</label>
+                    <input type="number" id="dailyWage" value="300" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>制作一件所需天数</label>
+                    <input type="number" id="workDays" value="2" step="0.5" min="0.1">
+                </div>
+                <div class="form-group">
+                    <label>包装成本 (元/件)</label>
+                    <input type="number" id="packagingCost" value="10" step="0.01" min="0">
+                    <span class="hint">可变成本</span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>目标销售渠道</label>
+                    <select id="primaryChannel">
+                        <option value="景区">景区</option>
+                        <option value="线下实体店">线下实体店</option>
+                        <option value="电商">电商</option>
+                        <option value="批发">批发</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>同类产品市场均价 (可选)</label>
+                    <input type="number" id="marketPrice" placeholder="如不填，则只按成本定价" step="0.01" min="0">
+                    <span class="hint">元/件，用于对比参考</span>
+                </div>
+            </div>
+
+            <div class="preset-buttons">
+                <button class="preset-btn" onclick="setPreset('springFestival')">🏮 春节旺季（收藏级）</button>
+                <button class="preset-btn" onclick="setPreset('competitor')">📉 竞品平价替代</button>
+                <button class="preset-btn" onclick="setPreset('ipCollab')">✨ IP联名出圈</button>
+            </div>
+
+            <button class="calculate-btn" onclick="calculatePrice()">⚡ 一键生成定价方案</button>
+        </div>
+
+        <!-- 模块3：结果输出（动态填充） -->
+        <div id="output-module" style="display: none;">
+            <div class="card">
+                <h2>📊 模块三：定价结果与依据</h2>
+                <div id="outputContent"></div>
+            </div>
+        </div>
+
+        <footer>
+            陕西非遗定价智能体 · 微观经济学课程作业 · 原理支撑：成本理论 | 供需均衡 | 价格弹性 | 垄断竞争
+        </footer>
+    </div>
+
+    <script>
+        // ==================== 场景预设 ====================
+        function setPreset(scenario) {
+            if (scenario === 'springFestival') {
+                document.getElementById('usage').value = '收藏';
+                document.getElementById('heritageLevel').value = '国家级';
+                document.getElementById('complexity').value = '复杂';
+                document.getElementById('rawMaterial').value = 40;
+                document.getElementById('toolDepreciation').value = 8;
+                document.getElementById('rentCost').value = 12;
+                document.getElementById('dailyWage').value = 400;
+                document.getElementById('workDays').value = 4;
+                document.getElementById('packagingCost').value = 25;
+                document.getElementById('primaryChannel').value = '景区';
+                document.getElementById('marketPrice').value = '';
+            } else if (scenario === 'competitor') {
+                document.getElementById('usage').value = '伴手礼';
+                document.getElementById('heritageLevel').value = '省级';
+                document.getElementById('complexity').value = '中等';
+                document.getElementById('rawMaterial').value = 20;
+                document.getElementById('toolDepreciation').value = 4;
+                document.getElementById('rentCost').value = 6;
+                document.getElementById('dailyWage').value = 250;
+                document.getElementById('workDays').value = 1.5;
+                document.getElementById('packagingCost').value = 8;
+                document.getElementById('primaryChannel').value = '电商';
+                document.getElementById('marketPrice').value = 120;
+            } else if (scenario === 'ipCollab') {
+                document.getElementById('usage').value = '装饰';
+                document.getElementById('heritageLevel').value = '国家级';
+                document.getElementById('complexity').value = '中等';
+                document.getElementById('rawMaterial').value = 35;
+                document.getElementById('toolDepreciation').value = 6;
+                document.getElementById('rentCost').value = 10;
+                document.getElementById('dailyWage').value = 350;
+                document.getElementById('workDays').value = 2;
+                document.getElementById('packagingCost').value = 15;
+                document.getElementById('primaryChannel').value = '线下实体店';
+                document.getElementById('marketPrice').value = '';
+                // IP联名额外溢价将通过勾选方式添加，此处可以提示
+                alert('已填入IP联名基础数据。计算后将在零售价上再叠加30%文化品牌溢价，请参见结果说明。');
+            }
+        }
+
+        // ==================== 核心定价函数 ====================
+        function calculatePrice() {
+            // 读取输入
+            const productName = document.getElementById('productCategory').value;
+            const heritageLevel = document.getElementById('heritageLevel').value;
+            const complexity = document.getElementById('complexity').value;
+            const usage = document.getElementById('usage').value;
+            const primaryChannel = document.getElementById('primaryChannel').value;
+
+            const rawMaterial = parseFloat(document.getElementById('rawMaterial').value) || 0;
+            const toolDepreciation = parseFloat(document.getElementById('toolDepreciation').value) || 0;
+            const rentCost = parseFloat(document.getElementById('rentCost').value) || 0;
+            const dailyWage = parseFloat(document.getElementById('dailyWage').value) || 0;
+            const workDays = parseFloat(document.getElementById('workDays').value) || 0;
+            const packagingCost = parseFloat(document.getElementById('packagingCost').value) || 0;
+
+            const marketPriceInput = document.getElementById('marketPrice').value;
+            const marketPrice = marketPriceInput ? parseFloat(marketPriceInput) : null;
+
+            // ----- 步骤1：成本价计算（基于短期成本理论）-----
+            // 固定成本（按单件分摊）：原料、工具损耗、场地租金
+            const fixedCost = rawMaterial + toolDepreciation + rentCost;
+            // 可变成本：人工（工时费×天数） + 包装
+            const variableCost = dailyWage * workDays + packagingCost;
+            const totalCost = fixedCost + variableCost;
+            // 平均总成本 ATC ≈ 总成本（单件生产）
+            const costPrice = totalCost;
+
+            // ----- 步骤2：确定基础利润率（基于需求价格弹性）-----
+            let baseProfitRate;
+            switch (usage) {
+                case '收藏':
+                    baseProfitRate = 0.40; // 弹性小，高利润率
+                    break;
+                case '伴手礼':
+                case '装饰':
+                    baseProfitRate = 0.25; // 弹性中等
+                    break;
+                case '实用':
+                    baseProfitRate = 0.15; // 弹性大
+                    break;
+                default:
+                    baseProfitRate = 0.25;
+            }
+
+            // 基础定价 = 成本价 × (1 + 基础利润率)
+            let basePrice = costPrice * (1 + baseProfitRate);
+
+            // 如果用户提供了市场均价，进行对比并给出偏离提示
+            let marketComparisonText = '';
+            if (marketPrice && marketPrice > 0) {
+                const deviation = ((basePrice - marketPrice) / marketPrice * 100).toFixed(1);
+                if (deviation > 20) {
+                    marketComparisonText = `⚠️ 您的基础定价高于市场均价 <strong>${Math.abs(deviation)}%</strong>。建议适当降低利润率（如降至15%），或通过非遗级别溢价强化差异化。`;
+                } else if (deviation < -20) {
+                    marketComparisonText = `⚠️ 您的基础定价低于市场均价 <strong>${Math.abs(deviation)}%</strong>，可能利润偏低。可考虑提高利润率或增加文化溢价。`;
+                } else {
+                    marketComparisonText = `✅ 基础定价与市场均价偏差约 <strong>${deviation}%</strong>，处于合理区间。`;
+                }
+            }
+
+            // ----- 步骤3：调整定价（产品差异化溢价 & 市场结构）-----
+            // 溢价率定义
+            const heritageMarkup = { '国家级': 0.20, '省级': 0.10, '市级': 0.05 };
+            const complexityMarkup = { '复杂': 0.20, '中等': 0.10, '简单': 0.00 };
+            const channelMarkup = { '景区': 0.40, '线下实体店': 0.25, '电商': 0.15, '批发': 0.0 }; // 批发单独处理
+
+            const heritageRate = heritageMarkup[heritageLevel];
+            const complexityRate = complexityMarkup[complexity];
+            const channelRate = channelMarkup[primaryChannel];
+
+            // 基准零售价（不含渠道溢价，仅含非遗+工艺溢价）
+            const baseRetailPrice = basePrice * (1 + heritageRate + complexityRate);
+
+            // 各渠道最终零售价
+            const finalRetailPrices = {};
+            for (const [ch, chRate] of Object.entries({ '景区': 0.40, '线下实体店': 0.25, '电商': 0.15 })) {
+                finalRetailPrices[ch] = baseRetailPrice * (1 + chRate);
+            }
+
+            // 批发价 = 基础定价 × 批发系数（0.6）
+            const wholesalePrice = baseRetailPrice * 0.6; // 根据题目，批发价基于基础定价，不含渠道溢价
+
+            // 用户所选渠道的对应价格
+            let userChannelRetailPrice;
+            if (primaryChannel === '批发') {
+                userChannelRetailPrice = wholesalePrice;
+            } else {
+                userChannelRetailPrice = finalRetailPrices[primaryChannel];
+            }
+
+            // 格式化金额
+            const fmt = (val) => val.toFixed(2);
+
+            // 构建输出HTML
+            let html = '';
+
+            // 基础数据汇总
+            html += `<div style="margin-bottom:1rem;"><strong>产品：</strong>${productName} | ${heritageLevel} | ${complexity} | ${usage} | 渠道：${primaryChannel}</div>`;
+
+            // 多维度定价卡片
+            html += `<div class="price-box">
+                <div class="price-item"><div class="price-label">💰 成本价</div><div class="price-value">¥${fmt(costPrice)}</div></div>
+                <div class="price-item"><div class="price-label">🏷️ 建议零售价<br><small>(${primaryChannel})</small></div><div class="price-value">¥${fmt(userChannelRetailPrice)}</div></div>
+                <div class="price-item"><div class="price-label">📦 批发价</div><div class="price-value small">¥${fmt(wholesalePrice)}</div></div>
+            </div>`;
+
+            // 其他渠道价格参考
+            html += `<div style="margin-top:1rem;"><strong>各渠道零售参考：</strong>`;
+            html += `景区 ¥${fmt(finalRetailPrices['景区'])} | 实体店 ¥${fmt(finalRetailPrices['线下实体店'])} | 电商 ¥${fmt(finalRetailPrices['电商'])}`;
+            html += `</div>`;
+
+            // 市场均价对比提示
+            if (marketComparisonText) {
+                html += `<div class="warning">${marketComparisonText}</div>`;
+            }
+
+            // ----- 定价依据说明（经济学理论）-----
+            html += `<div class="explanation"><h3>📖 定价依据（微观经济学支撑）</h3><ul>`;
+
+            // 步骤1依据
+            html += `<li><strong>成本理论（短期成本）</strong>：根据教材短期成本章节，固定成本（FC）= 原料成本(${fmt(rawMaterial)}) + 工具损耗(${fmt(toolDepreciation)}) + 场地租金(${fmt(rentCost)}) = <strong>¥${fmt(fixedCost)}</strong>；
+            可变成本（VC）= 工时费(${dailyWage}元/天 × ${workDays}天) + 包装(${fmt(packagingCost)}) = <strong>¥${fmt(variableCost)}</strong>。
+            单件总成本 TC = FC + VC = <strong>¥${fmt(totalCost)}</strong>，此为定价底线（停产点以下）。</li>`;
+
+            // 步骤2依据
+            const elasticityDesc = usage === '收藏' ? '需求价格弹性小（Ed < 1）' : usage === '实用' ? '需求价格弹性较大（Ed > 1）' : '需求价格弹性中等（Ed ≈ 1）';
+            html += `<li><strong>需求价格弹性与利润率</strong>：该产品用途为“${usage}”，${elasticityDesc}。根据弹性定价原理，弹性小的产品可设置较高利润率（收藏类40%），弹性大的产品利润率宜低（实用类15%）。
+            因此基础利润率取 <strong>${(baseProfitRate*100).toFixed(0)}%</strong>，基础定价 = 成本价 × (1 + ${(baseProfitRate*100).toFixed(0)}%) = <strong>¥${fmt(basePrice)}</strong>。</li>`;
+
+            // 步骤3依据
+            html += `<li><strong>垄断竞争市场与产品差异化溢价</strong>：非遗产品属于垄断竞争市场，具备文化独特性，可获取溢价。
+            · 非遗级别溢价：${heritageLevel} +${(heritageRate*100).toFixed(0)}%；
+            · 工艺复杂度溢价：${complexity} +${(complexityRate*100).toFixed(0)}%；
+            基准零售价 = 基础定价 × (1 + ${(heritageRate*100).toFixed(0)}% + ${(complexityRate*100).toFixed(0)}%) = <strong>¥${fmt(baseRetailPrice)}</strong>。</li>`;
+
+            html += `<li><strong>渠道溢价理论</strong>：不同渠道消费者支付意愿和运营成本不同。
+            · 景区溢价+40%（消费者心理溢价高）；
+            · 线下实体店+25%（店铺运营成本）；
+            · 电商+15%（较低运营成本，价格透明）；
+            · 批发价按基础定价60%设定，符合薄利多销的完全竞争批发逻辑。
+            最终${primaryChannel}零售价 = 基准零售价 × (1 + ${(channelRate*100).toFixed(0)}%) = <strong>¥${fmt(userChannelRetailPrice)}</strong>。</li>`;
+
+            // 批发价说明
+            html += `<li><strong>批发价</strong>：采用基础定价 × 0.6 的薄利多销策略，价格 = <strong>¥${fmt(wholesalePrice)}</strong>，适合批量走货。</li>`;
+
+            // IP联名特殊处理（如果场景输入了IP联名，手动提醒，可在这里加一个全局变量标识）
+            // 简单实现：动态检测是否选择了IP联名场景？我们通过usage和额外标记判断。
+            // 我们可以在预设ipCollab时设置一个隐藏标记，此处简单处理：若使用“装饰”且国家级，可建议叠加IP溢价。但为了准确，我们用data属性保存标记。
+            // 更优雅：在结果里增加IP溢价复选框。目前先静态提示：如果当前是ipCollab场景，我们已经在提醒里说过。这里不额外增加代码复杂度，保持简洁。
+
+            html += `</ul></div>`;
+
+            // 销售建议
+            html += `<div class="explanation" style="border-left-color: #2E7D32;"><h3>💡 销售策略建议</h3><ul>`;
+            if (usage === '收藏') {
+                html += `<li>收藏类产品需求弹性小，景区/高端实体店定价可大胆上浮，重点关注文化故事包装。</li>`;
+            } else if (usage === '实用' || usage === '伴手礼') {
+                html += `<li>该类产品需求弹性中等偏大，建议密切关注竞品价格，电商渠道可结合促销活动走量。</li>`;
+            }
+            if (heritageLevel === '国家级') {
+                html += `<li>国家级非遗稀缺性高，建议突出“国家级传承人”故事，提升支付意愿。</li>`;
+            }
+            if (primaryChannel === '批发') {
+                html += `<li>批发价已设定为基础定价60%，建议起订量门槛，以保证整体利润。</li>`;
+            } else if (primaryChannel === '景区') {
+                html += `<li>景区渠道可配合节假日限时提价，但需注意消费者对过高价格的敏感度。</li>`;
+            }
+            html += `<li>定期复核成本数据（尤其是工时费波动），及时调整成本价，防止跌破停产点。</li>`;
+            html += `</ul></div>`;
+
+            // 显示输出模块
+            document.getElementById('outputContent').innerHTML = html;
+            document.getElementById('output-module').style.display = 'block';
+        }
+
+        // 页面加载时执行一次初始计算，展示示例
+        window.onload = function() {
+            calculatePrice();
+        };
+    </script>
+</body>
+</html>

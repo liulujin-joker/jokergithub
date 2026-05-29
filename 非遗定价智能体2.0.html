@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国非遗产品AI定价智能体</title>
+    <style>
+        :root {
+            --primary: #8B1E1E;
+            --secondary: #C9A96E;
+            --bg: #FDF8F3;
+            --card-bg: #FFFFFF;
+            --text: #2C1810;
+            --light-text: #5D4037;
+            --border: #E0D3C8;
+            --highlight: #FFF3E0;
+            --button: #A0522D;
+            --button-hover: #8B4513;
+            --result-bg: #FFFDF9;
+            --accent: #2E7D32;
+            --chip-bg: #F5EBE0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Noto Serif SC', 'STSong', 'SimSun', 'Songti SC', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 1rem; }
+
+        header {
+            text-align: center;
+            padding: 2rem 1rem;
+            background: linear-gradient(135deg, #2C1810 0%, #5D2E0C 50%, #8B4513 100%);
+            color: #FDF8F3;
+            border-radius: 0 0 24px 24px;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #C9A96E, #E8D5B7, #C9A96E);
+        }
+        header h1 { font-size: 2rem; letter-spacing: 3px; margin-bottom: 0.3rem; }
+        header p { opacity: 0.85; font-style: italic; font-size: 0.95rem; }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 14px;
+            box-shadow: 0 3px 16px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            margin-bottom: 1.2rem;
+            border: 1px solid var(--border);
+            transition: box-shadow 0.2s;
+        }
+        .card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
+        .card h2 {
+            font-size: 1.25rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px dashed var(--border);
+            letter-spacing: 1px;
+        }
+        .card h2 .icon { margin-right: 6px; }
+
+        .search-wrapper { position: relative; margin-bottom: 0.5rem; }
+        .search-wrapper input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            font-size: 1.05rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: #FFFAF8;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        .search-wrapper input:focus { outline: none; border-color: var(--secondary); }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0; right: 0;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 0 0 10px 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+        .search-results.active { display: block; }
+        .search-item {
+            padding: 0.7rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f5f5f5;
+            transition: background 0.15s;
+        }
+        .search-item:hover { background: var(--highlight); }
+        .search-item strong { display: block; color: var(--text); }
+        .search-item small { color: var(--light-text); font-size: 0.8rem; }
+        .search-item .tag { display: inline-block; background: var(--chip-bg); padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; margin-right: 4px; }
+
+        .product-detail {
+            background: #FFFAF5;
+            border: 1px dashed var(--secondary);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 0.8rem 0;
+            line-height: 1.7;
+            font-size: 0.93rem;
+            display: none;
+        }
+        .product-detail.active { display: block; }
+        .product-detail .pd-header { font-weight: bold; color: var(--primary); margin-bottom: 0.4rem; font-size: 1.05rem; }
+        .product-detail .pd-row { margin-bottom: 0.3rem; }
+        .product-detail .pd-label { color: var(--light-text); font-weight: bold; }
+
+        .form-row { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 0.8rem; }
+        .form-group { flex: 1; min-width: 180px; display: flex; flex-direction: column; }
+        .form-group label { font-weight: bold; margin-bottom: 0.25rem; color: var(--light-text); font-size: 0.85rem; }
+        .form-group select, .form-group input {
+            padding: 0.55rem 0.7rem;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: #FFFAF8;
+            color: var(--text);
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .form-group select:focus, .form-group input:focus { outline: none; border-color: var(--secondary); }
+        .hint { font-size: 0.75rem; color: #B0A090; margin-top: 2px; }
+        .form-group input:read-only { background: #F8F4F0; color: #999; cursor: not-allowed; }
+
+        .preset-buttons { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.8rem 0; }
+        .preset-btn {
+            background: var(--highlight);
+            border: 1.5px solid var(--secondary);
+            color: var(--text);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .preset-btn:hover { background: var(--secondary); color: white; }
+
+        .calculate-btn {
+            width: 100%;
+            padding: 0.85rem;
+            background: var(--button);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.15rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+            letter-spacing: 1px;
+        }
+        .calculate-btn:hover { background: var(--button-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139,69,19,0.25); }
+
+        .result-section { display: none; }
+        .result-section.active { display: block; }
+
+        .price-box { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 1rem 0; }
+        .price-item {
+            flex: 1; min-width: 110px;
+            background: white;
+            padding: 1rem 0.7rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid #f0e8dc;
+        }
+        .price-item.highlight {
+            border: 2px solid var(--secondary);
+            background: linear-gradient(135deg, #FFFDF8, #FFF8EC);
+        }
+        .price-label { font-size: 0.75rem; color: var(--light-text); margin-bottom: 0.2rem; text-transform: uppercase; }
+        .price-value { font-size: 1.7rem; font-weight: bold; color: var(--primary); }
+        .price-value.small { font-size: 1.3rem; }
+
+        .explanation {
+            margin-top: 1rem;
+            background: #FFFDF9;
+            padding: 1rem 1.2rem;
+            border-radius: 10px;
+            border-left: 5px solid var(--secondary);
+        }
+        .explanation h3 { color: var(--primary); margin-bottom: 0.6rem; font-size: 1.05rem; }
+        .explanation ul { list-style: none; padding: 0; }
+        .explanation li {
+            margin-bottom: 0.5rem;
+            padding-left: 1.4rem;
+            position: relative;
+            font-size: 0.92rem;
+            color: var(--text);
+        }
+        .explanation li::before { content: '▪'; position: absolute; left: 0; color: var(--secondary); font-weight: bold; }
+
+        .econ-note {
+            display: inline-block;
+            background: #E8F5E9;
+            color: #2E7D32;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 0.78rem;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+
+        .warning {
+            background: #FFF8E1;
+            border-left: 4px solid #F57F17;
+            padding: 0.7rem 1rem;
+            margin: 0.8rem 0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .suggestion {
+            background: #E8F5E9;
+            border-left: 4px solid #2E7D32;
+            padding: 0.7rem 1rem;
+            margin: 0.8rem 0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .channel-table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.9rem; }
+        .channel-table th, .channel-table td { padding: 0.5rem 0.8rem; border: 1px solid #e0d8cc; text-align: center; }
+        .channel-table th { background: #FDF5EC; color: var(--primary); }
+        .channel-table .active-row { background: #FFF8EC; font-weight: bold; }
+
+        footer { text-align: center; margin-top: 2rem; padding: 1rem; color: var(--light-text); font-size: 0.78rem; opacity: 0.7; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin: 0 3px;
+        }
+        .badge-national { background: #FFEBEE; color: #B71C1C; }
+        .badge-province { background: #FFF3E0; color: #E65100; }
+        .badge-city { background: #F5F5F5; color: #616161; }
+
+        @media (max-width: 600px) {
+            .form-row { flex-direction: column; }
+            header h1 { font-size: 1.4rem; }
+            .price-item { min-width: 80px; }
+            .price-value { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+<header>
+    <h1>🏮 中国非物质文化遗产 AI 定价智能体</h1>
+    <p>以微观经济学原理为锚 · 覆盖全国非遗品类 · 让文化价值被科学度量</p>
+</header>
+
+<!-- ========== 模块1：产品搜索与信息输入 ========== -->
+<div class="card" id="input-module">
+    <h2><span class="icon">🔍</span>模块一：非遗产品搜索与信息输入</h2>
+
+    <!-- 搜索框 -->
+    <div class="search-wrapper">
+        <input type="text" id="searchBox" placeholder="🔍 搜索全国非遗产品（输入名称或地区，如"皮影""景德镇""蜀绣"）..." autocomplete="off">
+        <div class="search-results" id="searchResults"></div>
+    </div>
+    <div style="font-size:0.78rem;color:#B0A090;margin-bottom:0.8rem;">💡 搜索后点击产品即可自动填入详情和参考数据</div>
+
+    <!-- 选中产品详情展示 -->
+    <div class="product-detail" id="productDetail"></div>
+
+    <!-- 隐藏的选中产品名 -->
+    <input type="hidden" id="productCategory" value="">
+
+    <div class="form-row">
+        <div class="form-group">
+            <label>非遗级别</label>
+            <select id="heritageLevel">
+                <option value="国家级">国家级</option>
+                <option value="省级">省级</option>
+                <option value="市级">市级</option>
+            </select>
+            <span class="hint">影响文化溢价幅度</span>
+        </div>
+        <div class="form-group">
+            <label>工艺复杂度</label>
+            <select id="complexity">
+                <option value="复杂">复杂（多道工序，纯手工）</option>
+                <option value="中等">中等（半手工半工具）</option>
+                <option value="简单">简单（标准化程度高）</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>主要用途</label>
+            <select id="usage">
+                <option value="收藏">收藏（拍卖/高端礼品）</option>
+                <option value="伴手礼">伴手礼（旅游纪念）</option>
+                <option value="装饰">装饰（家居陈设）</option>
+                <option value="实用">实用（日常使用）</option>
+            </select>
+            <span class="hint">决定需求价格弹性</span>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label>原料成本（元/件）</label>
+            <input type="number" id="rawMaterial" value="25" step="0.01" min="0">
+            <span class="hint">固定成本(FC)组成部分</span>
+        </div>
+        <div class="form-group">
+            <label>工具损耗分摊（元/件）</label>
+            <input type="number" id="toolDepreciation" value="5" step="0.01" min="0">
+        </div>
+        <div class="form-group">
+            <label>场地租金分摊（元/件）</label>
+            <input type="number" id="rentCost" value="8" step="0.01" min="0">
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label>手艺人单日工时费（元/天）</label>
+            <input type="number" id="dailyWage" value="300" step="0.01" min="0">
+            <span class="hint">可变成本(VC)核心，参考当地水平</span>
+        </div>
+        <div class="form-group">
+            <label>制作一件所需天数</label>
+            <input type="number" id="workDays" value="2" step="0.5" min="0.1">
+        </div>
+        <div class="form-group">
+            <label>包装成本（元/件）</label>
+            <input type="number" id="packagingCost" value="10" step="0.01" min="0">
+            <span class="hint">可变成本</span>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label>目标销售渠道</label>
+            <select id="primaryChannel">
+                <option value="景区">景区零售</option>
+                <option value="线下实体店">线下实体店</option>
+                <option value="电商">电商平台</option>
+                <option value="批发">批发（走量）</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>同类产品市场均价（选填）</label>
+            <input type="number" id="marketPrice" placeholder="元/件，用于供需均衡参考" step="0.01" min="0">
+            <span class="hint">均衡价格参照，可对比计算结果</span>
+        </div>
+    </div>
+
+    <!-- 预设场景按钮 -->
+    <div class="preset-buttons">
+        <button class="preset-btn" onclick="setPreset('springFestival')">🏮 春节旺季（收藏级·景区）</button>
+        <button class="preset-btn" onclick="setPreset('competitor')">📉 竞品出现·平价替代</button>
+        <button class="preset-btn" onclick="setPreset('ipCollab')">✨ IP联名出圈</button>
+        <button class="preset-btn" onclick="setPreset('wholesale')">📦 批量走货·批发场景</button>
+    </div>
+
+    <button class="calculate-btn" onclick="calculatePrice()">⚡ 一键生成经济学定价方案</button>
+</div>
+
+<!-- ========== 模块3：结果输出（动态填充） ========== -->
+<div class="result-section" id="outputModule">
+    <div class="card">
+        <h2><span class="icon">📊</span>模块三：定价结果与经济学依据</h2>
+        <div id="outputContent"></div>
+    </div>
+</div>
+
+<footer>
+    中国非遗定价智能体 · 微观经济学课程作业 · 核心理论支撑：短期成本理论 | 供需均衡 | 需求价格弹性(Ed) | 垄断竞争市场结构 | 产品差异化溢价
+</footer>
+</div>
+
+<script>
+// ==================== 全国非遗产品数据库 ====================
+const ichDatabase = [
+    // ===== 陕西 =====
+    {name:"华县皮影",region:"陕西·华县",level:"国家级",category:"传统戏剧美术",desc:"华县皮影是中国皮影艺术的活化石，起源于汉代，盛行于明清。以牛皮为原料，经刮、磨、洗、刻、染、缀等20余道工序手工制成。人物造型夸张古朴，色彩艳丽，高约30-50厘米。2011年入选联合国教科文组织人类非物质文化遗产代表作名录。传承人多为年迈艺人，后继乏人，市场定价长期偏低。",rawMat:30,tool:6,rent:8,wage:280,days:3,pkg:15,marketRange:"150-500元"},
+    {name:"凤翔泥塑",region:"陕西·凤翔",level:"国家级",category:"传统美术",desc:"凤翔泥塑始于明代，以当地黑油土和白土为原料，经捶泥、捏塑、彩绘等工序制成。造型以虎头挂片、坐虎最为出名，色彩鲜艳，造型夸张可爱。2006年列入首批国家级非遗。近年因文旅融合价格有所上升，但仍存在手艺人议价能力弱的问题。",rawMat:12,tool:3,rent:5,wage:200,days:1,pkg:8,marketRange:"30-150元"},
+    {name:"安塞剪纸",region:"陕西·安塞",level:"国家级",category:"传统美术",desc:"安塞剪纸是陕北黄土高原的民间艺术瑰宝，风格粗犷豪放、质朴夸张。内容多为农耕、民俗、生肖等，在春节、婚庆时张贴于窗格。2006年列入国家级非遗。材料成本低但人工耗时差异大，精品收藏级剪纸可传承人花费数周完成，但市场价常低于同水平艺术品。",rawMat:3,tool:1,rent:3,wage:200,days:0.5,pkg:5,marketRange:"20-200元"},
+    {name:"马勺脸谱",region:"陕西·宝鸡",level:"国家级",category:"传统美术",desc:"马勺脸谱源于陕西宝鸡地区的社火文化，将神话人物、历史英雄的面部谱式绘制于木制马勺（舀水瓢）上。色彩对比强烈，线条粗犷有力，兼具辟邪纳福的民俗功能。制作需木工车削+手工彩绘，马勺形状本身带来独特的装饰效果。",rawMat:15,tool:4,rent:5,wage:220,days:1.5,pkg:10,marketRange:"60-300元"},
+    {name:"耀州瓷",region:"陕西·铜川",level:"国家级",category:"传统技艺",desc:"耀州瓷始于唐代，盛于宋，是北方青瓷的代表。以刻花、印花装饰著称，釉色青绿如橄榄。需经采土、练泥、拉坯、修坯、刻花、素烧、施釉、高温烧制等十余道工序。成品率受窑变影响，精品率低，成本波动大。",rawMat:20,tool:10,rent:12,wage:350,days:3,pkg:20,marketRange:"100-2000元"},
+    {name:"汉中藤编",region:"陕西·汉中",level:"省级",category:"传统技艺",desc:"汉中藤编以秦岭山区野生藤条为原料，经蒸煮、剥皮、晾晒后手工编织成椅、篮、席等日用品。工艺强调藤条的柔韧性和编织密度。近年来因藤条资源减少和人工成本上升，定价面临困境——过高则失去日用竞争力，过低则无法覆盖工时。",rawMat:10,tool:2,rent:4,wage:180,days:1,pkg:6,marketRange:"40-200元"},
+    {name:"武功刺绣",region:"陕西·武功",level:"省级",category:"传统美术",desc:"武功刺绣源自陕西武功县，针法细腻多变，配色雅致。以绸缎为底，用蚕丝线绣制花鸟、山水、人物。一件精品绣品需数万至数十万针，手工耗时极长。与苏绣、湘绣相比知名度较低，品牌溢价不足，手艺人心血与定价严重不匹配。",rawMat:25,tool:5,rent:6,wage:280,days:5,pkg:18,marketRange:"200-2000元"},
+
+    // ===== 北京 =====
+    {name:"景泰蓝",region:"北京",level:"国家级",category:"传统技艺",desc:"景泰蓝即铜胎掐丝珐琅，始于元朝，盛于明景泰年间。以紫铜为胎，用细铜丝掐成花纹焊于胎上，填珐琅釉料后反复烧结、磨光、镀金。工序繁复，仅烧蓝就要反复七八次。用料昂贵（铜、金、珐琅），工时极长，是国礼级工艺品。",rawMat:80,tool:20,rent:15,wage:400,days:7,pkg:40,marketRange:"500-50000元"},
+    {name:"北京雕漆",region:"北京",level:"国家级",category:"传统技艺",desc:"雕漆是在涂有厚漆层的器物上雕刻花纹的工艺，需在胎体上涂数十至数百层大漆，每层阴干后方可涂下一层，仅漆层准备就需数月。雕刻时漆层已硬化，刀法要求极高。原料大漆价格不菲且易致敏，传承人稀缺。",rawMat:100,tool:15,rent:12,wage:500,days:15,pkg:50,marketRange:"2000-100000元"},
+
+    // ===== 江苏 =====
+    {name:"苏绣",region:"江苏·苏州",level:"国家级",category:"传统美术",desc:"苏绣是中国四大名绣之一，以针法细腻、色彩雅致、图案秀丽著称。使用蚕丝线在绸缎上刺绣，一根丝线可劈为1/48股。精品苏绣需数月乃至数年完成，绣工眼力和手感要求极高。市场两极分化严重：低端机绣冒充手工绣压价，高端精品有价无市。",rawMat:30,tool:5,rent:8,wage:350,days:10,pkg:25,marketRange:"300-50000元"},
+    {name:"宜兴紫砂陶",region:"江苏·宜兴",level:"国家级",category:"传统技艺",desc:"宜兴紫砂壶以当地独有的紫砂泥为原料，含铁量高，透气性好。制作需经炼泥、捶打、拍身筒、装嘴把、明针精修等全手工工序。紫砂泥资源日益稀缺（政府限采），名家壶价格连年攀升，但普通工艺师的定价缺乏科学依据。",rawMat:50,tool:8,rent:10,wage:400,days:2,pkg:20,marketRange:"200-50000元"},
+    {name:"南京云锦",region:"江苏·南京",level:"国家级",category:"传统技艺",desc:"云锦因美如云霞而得名，需用大花楼提花木织机，由上下两人配合操作，一天仅能织5-6厘米。原料为金线、银线、蚕丝、孔雀羽等名贵材料。有"寸锦寸金"之说，是元明清三朝皇家御用贡品。",rawMat:200,tool:30,rent:20,wage:500,days:20,pkg:80,marketRange:"5000-200000元"},
+
+    // ===== 浙江 =====
+    {name:"龙泉青瓷",region:"浙江·龙泉",level:"国家级",category:"传统技艺",desc:"龙泉青瓷以粉青、梅子青釉色闻名天下，需经1300°C高温还原焰烧成。2009年入选联合国教科文组织人类非遗代表作。制作含采土、练泥、拉坯、修坯、素烧、施釉、釉烧等工序，釉料配方为各家秘传，成品率受窑变控制，精品率仅30%-50%。",rawMat:25,tool:10,rent:12,wage:350,days:3,pkg:22,marketRange:"150-5000元"},
+    {name:"东阳木雕",region:"浙江·东阳",level:"国家级",category:"传统美术",desc:"东阳木雕以浮雕见长，构图饱满，层次丰富。使用樟木、椴木、银杏木等为原料，经设计、打坯、修光、打磨、上漆等工序。大型作品需团队协作数月。适用于建筑装饰、家具、摆件等，近年来因红木原料涨价推升成本。",rawMat:60,tool:12,rent:10,wage:380,days:8,pkg:30,marketRange:"500-20000元"},
+    {name:"青田石雕",region:"浙江·青田",level:"国家级",category:"传统美术",desc:"青田石雕以青田石（叶蜡石）为原料，因材施艺，依色取巧。石质温润细腻，适宜精雕细镂。题材涵盖山水、花鸟、人物。名贵石料日益稀缺，一块上等青田石原料价可达数万元，成本结构特殊——原料占比极高，人工反居其次。",rawMat:200,tool:15,rent:10,wage:450,days:5,pkg:35,marketRange:"500-50000元"},
+
+    // ===== 江西 =====
+    {name:"景德镇手工制瓷",region:"江西·景德镇",level:"国家级",category:"传统技艺",desc:"景德镇是千年瓷都，手工制瓷含拉坯、利坯、画坯、施釉、烧窑等72道工序，分工精细。青花、粉彩、玲珑、颜色釉四大名瓷享誉世界。传承人多继承家族手艺，但定价多凭经验，缺乏对原料、工时、艺术价值的科学量化。",rawMat:22,tool:9,rent:10,wage:320,days:2.5,pkg:18,marketRange:"100-8000元"},
+
+    // ===== 福建 =====
+    {name:"德化白瓷",region:"福建·德化",level:"国家级",category:"传统技艺",desc:"德化白瓷以"中国白"著称，瓷质洁白温润如玉，透光性好。明代何朝宗创作的达摩、观音像为世界各大博物馆珍藏。现代德化瓷分艺术瓷和日用瓷，艺用瓷强调雕塑造型，每件需手工塑形、修整、烧制，精品需反复试验釉色和窑位。",rawMat:18,tool:8,rent:9,wage:300,days:2,pkg:15,marketRange:"80-6000元"},
+    {name:"福州脱胎漆器",region:"福建·福州",level:"国家级",category:"传统技艺",desc:"福州脱胎漆器以泥土或石膏塑胎，裱布涂漆后脱去内胎，再经数十道上漆、打磨、装饰而成。质地轻巧坚固，色泽光亮如镜。与景泰蓝、景德镇瓷器并称中国传统工艺三宝。制作周期长，大漆成本高且易致敏。",rawMat:90,tool:18,rent:12,wage:380,days:10,pkg:40,marketRange:"800-30000元"},
+
+    // ===== 广东 =====
+    {name:"粤绣（广绣）",region:"广东·广州",level:"国家级",category:"传统美术",desc:"粤绣包括广绣和潮绣，以构图案饱满、色彩艳丽、针法多样著称。使用蚕丝、金银线、孔雀羽等材料，在绸缎上绣制。潮绣还有独特的垫高绣法，使图案立体凸出。外销历史悠久，18-19世纪大量出口欧洲。",rawMat:28,tool:5,rent:8,wage:320,days:6,pkg:20,marketRange:"300-15000元"},
+    {name:"端砚",region:"广东·肇庆",level:"国家级",category:"传统技艺",desc:"端砚为中国四大名砚之首，以端溪名坑砚石为原料，石质细腻温润，发墨不损毫。砚石开采受政府严格管制，名坑石料日益稀缺。除实用价值外，端砚因石品花纹和雕刻艺术而具高收藏价值，定价中原料稀缺性占比极大。",rawMat:150,tool:12,rent:8,wage:400,days:4,pkg:35,marketRange:"500-100000元"},
+
+    // ===== 河南 =====
+    {name:"钧瓷",region:"河南·禹州",level:"国家级",category:"传统技艺",desc:"钧瓷以"入窑一色，出窑万彩"的窑变艺术闻名。铜红釉在还原焰中产生海棠红、玫瑰紫等奇幻色彩，每件独一无二。需经1300°C高温烧制，窑变效果不可控，有"十窑九不成"之说，精品率极低。2008年列入国家级非遗。",rawMat:30,tool:10,rent:12,wage:350,days:3,pkg:25,marketRange:"200-10000元"},
+    {name:"汝瓷",region:"河南·汝州",level:"国家级",category:"传统技艺",desc:"汝瓷为宋代五大名窑之首，以天青釉色和蝉翼纹开片著称。传世品不足百件，件件国宝。现代汝瓷烧制需以玛瑙入釉，高温还原烧成，釉色和开片效果极难控制，成品率低。因宋徽宗审美加持，文化溢价显著。",rawMat:35,tool:10,rent:12,wage:380,days:4,pkg:30,marketRange:"300-15000元"},
+    {name:"洛阳唐三彩",region:"河南·洛阳",level:"国家级",category:"传统技艺",desc:"唐三彩是唐代彩色釉陶的总称，以黄、绿、白三色为主。制作需经雕塑成型、素烧、施釉、釉烧等工序。现代复仿制品分高仿（手工雕塑、柴窑烧制）和流水线产品，成本差异悬殊。大型三彩马、骆驼等摆件在旅游市场销量大，但定价混乱。",rawMat:25,tool:7,rent:8,wage:280,days:2,pkg:18,marketRange:"80-2000元"},
+
+    // ===== 山东 =====
+    {name:"潍坊风筝",region:"山东·潍坊",level:"国家级",category:"传统技艺",desc:"潍坊风筝制作含扎骨架、裱糊、彩绘、拴线四步，以龙头蜈蚣串式风筝最具特色。材料为竹条、宣纸或绢。精品风筝需手工削竹、调色、绘画，具有观赏和放飞双重功能。2006年列入国家级非遗，年产值超20亿元，但个体手艺人的定价仍不科学。",rawMat:8,tool:3,rent:4,wage:200,days:0.5,pkg:6,marketRange:"20-200元"},
+    {name:"鲁绣",region:"山东",level:"国家级",category:"传统美术",desc:"鲁绣是山东传统刺绣，以棉线、丝线在棉布或绸缎上刺绣，针法粗犷中见细腻，色彩对比强烈。发丝绣更是一绝——将人发劈丝后与丝线混合绣制，质感独特。但鲁绣知名度不及苏绣、湘绣，市场溢价较低。",rawMat:15,tool:4,rent:5,wage:250,days:4,pkg:12,marketRange:"150-3000元"},
+
+    // ===== 湖南 =====
+    {name:"湘绣",region:"湖南·长沙",level:"国家级",category:"传统美术",desc:"湘绣以丝绒线在绸缎上绣制，风格豪放中见精细，擅长表现狮虎猛兽的毛发质感。独创鬅毛针法，将丝线劈至极细后层层绣出动物毛发的蓬松感。与苏绣、粤绣、蜀绣并称中国四大名绣。",rawMat:25,tool:5,rent:7,wage:300,days:5,pkg:18,marketRange:"250-8000元"},
+
+    // ===== 四川 =====
+    {name:"蜀绣",region:"四川·成都",level:"国家级",category:"传统美术",desc:"蜀绣以软缎和彩丝为原料，针法有120余种。以芙蓉、鲤鱼、熊猫、金丝猴等四川风物为主题。绣品色彩典雅、针脚平齐。2006年列入国家级非遗。近年来因熊猫IP带动市场，但基础定价仍缺乏经济学支撑。",rawMat:22,tool:5,rent:7,wage:280,days:4,pkg:16,marketRange:"200-6000元"},
+    {name:"蜀锦",region:"四川·成都",level:"国家级",category:"传统技艺",desc:"蜀锦为四大名锦之一，需用传统花楼织机手工织造，两人上下配合，一位挽花工坐于机顶提拉经线，一位织工投梭打纬。一天仅能织数厘米，图案精美繁复。2006年列入国家级非遗，有"寸锦寸金"之说。",rawMat:120,tool:25,rent:15,wage:400,days:15,pkg:50,marketRange:"3000-50000元"},
+    {name:"绵竹年画",region:"四川·绵竹",level:"国家级",category:"传统美术",desc:"绵竹年画为中国四大年画之一，以手工木版套印加彩绘为主，风格质朴浓烈。内容多为门神、福娃、民俗故事。材料为当地产粉笺纸和矿物颜料，成本相对可控，但年节时需求弹性变化剧烈。",rawMat:5,tool:2,rent:3,wage:180,days:0.3,pkg:4,marketRange:"15-100元"},
+
+    // ===== 云南 =====
+    {name:"建水紫陶",region:"云南·建水",level:"国家级",category:"传统技艺",desc:"建水紫陶以当地五色土为原料，含铁量高，烧成后呈紫红色。制作含制泥、拉坯、书画装饰、刻填、精修、烧制、磨光等工序。集书画、篆刻、雕塑于一体，文化附加值高。2008年列入国家级非遗，近年市场热度上升。",rawMat:15,tool:8,rent:9,wage:300,days:2,pkg:18,marketRange:"150-4000元"},
+    {name:"白族扎染",region:"云南·大理",level:"国家级",category:"传统技艺",desc:"大理白族扎染以棉白布为底，用针线扎花后浸入板蓝根等植物染料中反复浸染，拆线后形成蓝白相间的花纹。每件花纹独一无二。2006年列入国家级非遗。在旅游市场销量极大，但低价竞争严重，精品与旅游纪念品价格悬殊。",rawMat:6,tool:2,rent:4,wage:160,days:0.3,pkg:5,marketRange:"20-200元"},
+
+    // ===== 贵州 =====
+    {name:"苗族银饰锻制",region:"贵州",level:"国家级",category:"传统技艺",desc:"苗族银饰以大、重、多为美，含银量通常为99%以上。制作需经熔银、锻打、拉丝、编结、錾刻、焊接、洗银等数十道工序。一套完整盛装银饰重达十余公斤。银原料成本占比极高，银价波动直接影响定价。2006年列入国家级非遗。",rawMat:300,tool:15,rent:8,wage:350,days:5,pkg:25,marketRange:"500-20000元"},
+    {name:"苗族蜡染",region:"贵州",level:"国家级",category:"传统技艺",desc:"蜡染以蜡刀蘸熔蜡在白布上绘花，浸入蓝靛染缸染色后煮去蜡质，形成蓝底白花的图案。蜡在染色时自然龟裂形成冰纹，是蜡染独特魅力所在。原料为棉布、蜂蜡、蓝靛，成本可控但手工绘制耗时。",rawMat:8,tool:3,rent:4,wage:180,days:0.8,pkg:7,marketRange:"40-300元"},
+
+    // ===== 西藏 =====
+    {name:"藏族唐卡",region:"西藏",level:"国家级",category:"传统美术",desc:"唐卡是藏传佛教卷轴画，以矿物颜料（金、银、朱砂、绿松石等）在棉布或丝绸上绘制，色彩千年不褪。绘制需严格遵循度量经，开脸、描金等关键步骤更需诵经祈福。一幅精品唐卡需数月乃至数年完成，颜料昂贵，是宗教艺术品中的高端品类。",rawMat:150,tool:20,rent:10,wage:400,days:30,pkg:60,marketRange:"3000-300000元"},
+    {name:"藏毯",region:"西藏·青海",level:"国家级",category:"传统技艺",desc:"藏毯以青藏高原羊毛为原料，手工纺纱、植物染色、手工编织。图案以几何纹和吉祥纹为主，色彩浓烈。密度高、弹性好、耐磨。2006年列入国家级非遗，近年来因高端家居市场需求增长，定价需科学化。",rawMat:80,tool:12,rent:10,wage:280,days:4,pkg:30,marketRange:"500-8000元"},
+
+    // ===== 甘肃 =====
+    {name:"环县皮影",region:"甘肃·环县",level:"国家级",category:"传统戏剧美术",desc:"环县皮影与华县皮影同为西北皮影代表，风格更粗犷豪放。以牛皮手工雕刻，色彩厚重。环县道情皮影戏将皮影表演与道情说唱结合，2006年列入国家级非遗。艺人多为农民，农闲从艺，定价严重偏低。",rawMat:25,tool:5,rent:6,wage:200,days:2,pkg:12,marketRange:"100-400元"},
+
+    // ===== 山西 =====
+    {name:"平遥推光漆器",region:"山西·平遥",level:"国家级",category:"传统技艺",desc:"平遥推光漆器以手掌推光打磨得名，漆面光亮如镜。制作含制胎、裱布、刮灰、上漆、描金彩绘、推光等工序。大漆需层层涂刷，每层阴干后再涂，耗时长。2006年列入国家级非遗，产品远销海外。",rawMat:70,tool:15,rent:10,wage:320,days:6,pkg:30,marketRange:"400-8000元"},
+
+    // ===== 河北 =====
+    {name:"蔚县剪纸",region:"河北·蔚县",level:"国家级",category:"传统美术",desc:"蔚县剪纸以阴刻为主、阳刻为辅，用刻刀在宣纸上镂刻后点染彩色。题材以戏曲人物、花鸟为主，色彩浓烈、构图饱满。2006年列入国家级非遗，是全球唯一以阴刻为主、重彩点染的剪纸流派。",rawMat:3,tool:2,rent:3,wage:180,days:0.3,pkg:5,marketRange:"15-150元"},
+    {name:"磁州窑",region:"河北·邯郸",level:"国家级",category:"传统技艺",desc:"磁州窑是北方最大的民窑体系，以白地黑花装饰著称，风格粗犷豪放、贴近生活。采用化妆土技法，在灰胎上施白化妆土再绘黑彩。宋元时期产品远销海外。2006年列入国家级非遗。",rawMat:16,tool:7,rent:8,wage:260,days:1.5,pkg:14,marketRange:"80-1500元"},
+
+    // ===== 湖北 =====
+    {name:"汉绣",region:"湖北·武汉",level:"国家级",category:"传统美术",desc:"汉绣以楚文化为底蕴，风格粗犷中见精巧，针法以"平金夹绣"著称，即在绣面上以金线盘出图案轮廓再填绣。色彩浓烈，对比强烈。2008年列入国家级非遗，但市场认知度不及四大名绣，溢价空间待挖掘。",rawMat:20,tool:4,rent:6,wage:260,days:4,pkg:15,marketRange:"180-4000元"},
+
+    // ===== 安徽 =====
+    {name:"宣纸",region:"安徽·泾县",level:"国家级",category:"传统技艺",desc:"宣纸以青檀皮和沙田稻草为原料，经108道工序、历时300余天手工制成。有"纸寿千年"之誉，是书法绘画的顶级用纸。2009年列入联合国教科文组织人类非遗代表作。原料青檀皮资源有限，产能受自然条件制约，优质宣纸供不应求。",rawMat:8,tool:4,rent:6,wage:250,days:0.2,pkg:5,marketRange:"10-200元（每张）"},
+    {name:"歙砚",region:"安徽·歙县",level:"国家级",category:"传统技艺",desc:"歙砚为中国四大名砚之一，以龙尾山砚石为原料，石质坚润细密。砚石纹理丰富（金星、眉纹、罗纹等），雕刻后兼具实用和观赏价值。2006年列入国家级非遗。名坑佳石日渐稀少，稀缺性推高收藏价值。",rawMat:120,tool:10,rent:8,wage:380,days:3,pkg:30,marketRange:"400-50000元"},
+
+    // ===== 上海 =====
+    {name:"上海顾绣",region:"上海",level:"国家级",category:"传统美术",desc:"顾绣始于明代上海露香园顾氏家族，以摹仿宋元名画入绣闻名，绣制极精细，一根丝线可劈为1/64股。有"画绣"之称，是文人雅士的珍藏。2006年列入国家级非遗。传承人极少，产品稀缺，定价需平衡传承成本与市场接受度。",rawMat:35,tool:6,rent:10,wage:400,days:12,pkg:30,marketRange:"2000-50000元"},
+
+    // ===== 辽宁 =====
+    {name:"锦州满族民间刺绣",region:"辽宁·锦州",level:"国家级",category:"传统美术",desc:"锦州满族刺绣以枕头顶、幔帐套、服饰等实用品为主要载体，针法以平绣、打子绣、锁绣为主。图案多为满族传统纹样如萨满符号、动植物等。2008年列入国家级非遗，是研究满族民俗的重要实物。",rawMat:12,tool:3,rent:5,wage:200,days:3,pkg:10,marketRange:"100-2000元"},
+
+    // ===== 吉林 =====
+    {name:"长白山满族剪纸",region:"吉林",level:"国家级",category:"传统美术",desc:"长白山满族剪纸以渔猎、农耕、萨满祭祀等满族生活为主题，风格古朴粗犷。区别于汉族剪纸多用于窗花，满族剪纸更多用于祭祀和仪式，文化内涵独特。2008年列入国家级非遗。",rawMat:2,tool:1,rent:3,wage:160,days:0.3,pkg:4,marketRange:"15-120元"},
+
+    // ===== 新疆 =====
+    {name:"维吾尔族艾德莱斯绸",region:"新疆",level:"国家级",category:"传统技艺",desc:"艾德莱斯绸是维吾尔族传统扎染丝织品，以纯蚕丝为原料，经扎经染色后织造，图案如流水般自然晕染。每匹绸缎的花纹都是独一无二的。2008年列入国家级非遗，近年来在时尚界关注度上升。",rawMat:40,tool:8,rent:6,wage:250,days:1.5,pkg:15,marketRange:"150-2000元"},
+
+    // ===== 广西 =====
+    {name:"壮锦",region:"广西",level:"国家级",category:"传统技艺",desc:"壮锦与蜀锦、云锦、宋锦并称中国四大名锦，以棉麻线为经、丝绒线为纬手工织造。图案多为几何纹和吉祥纹，色彩浓烈。2006年列入国家级非遗。过去为壮族女子嫁妆必备，现今面临机器织锦冲击，手工壮锦定价需弥补高工时成本。",rawMat:20,tool:8,rent:6,wage:220,days:2,pkg:14,marketRange:"120-2000元"},
+
+    // ===== 海南 =====
+    {name:"黎族传统纺染织绣",region:"海南",level:"国家级",category:"传统技艺",desc:"黎族纺染织绣技艺含纺纱、染色（植物染料）、织布、刺绣四步。黎锦以海岛棉为原料，图案记录黎族历史传说，被称为"穿在身上的史书"。2009年列入联合国教科文组织急需保护的非遗。掌握全套技艺的传承人已不足百人，极度稀缺。",rawMat:18,tool:6,rent:5,wage:240,days:5,pkg:16,marketRange:"300-6000元"},
+
+    // ===== 青海 =====
+    {name:"热贡艺术",region:"青海·同仁",level:"国家级",category:"传统美术",desc:"热贡艺术是藏传佛教艺术的重要流派，含唐卡、壁画、堆绣、雕塑等。以矿物颜料和金粉绘制，色彩绚丽、画工精细。2009年列入联合国教科文组织人类非遗代表作。传承人以师徒制延续，作品定价受宗教文化加持，高端市场稳定。",rawMat:120,tool:18,rent:8,wage:380,days:20,pkg:50,marketRange:"2000-100000元"},
+
+    // ===== 宁夏 =====
+    {name:"贺兰砚",region:"宁夏·银川",level:"国家级",category:"传统技艺",desc:"贺兰砚以贺兰山滚钟口所产贺兰石为原料，石质细润，发墨快，不损毫。石色以紫底绿斑为贵（"紫袍玉带"）。雕刻题材以西北风物见长。2011年列入国家级非遗。贺兰石资源有限，开采受限，原料稀缺性推升成本。",rawMat:100,tool:10,rent:8,wage:320,days:3,pkg:28,marketRange:"400-15000元"},
+
+    // ===== 内蒙古 =====
+    {name:"蒙古族马头琴制作",region:"内蒙古",level:"国家级",category:"传统技艺",desc:"马头琴是蒙古族最具代表性的拉弦乐器，琴首雕马头，琴箱蒙马皮或蟒皮。制作需经选木料、雕刻琴首、弯制琴杆、蒙皮、调音等数十道工序。一把手工马头琴从选料到成品需数月，木料需自然干燥数年。2006年列入国家级非遗。",rawMat:150,tool:20,rent:12,wage:400,days:10,pkg:40,marketRange:"1500-15000元"},
+
+    // ===== 重庆 =====
+    {name:"荣昌陶器",region:"重庆·荣昌",level:"国家级",category:"传统技艺",desc:"荣昌陶器以当地优质红泥和白泥为原料，质地细腻、可塑性强。以泡菜坛、茶壶等日用陶为主，也产艺术陶。烧成温度在1150-1200°C。2011年列入国家级非遗。与宜兴紫砂齐名，但品牌溢价远低于后者，定价有提升空间。",rawMat:10,tool:6,rent:7,wage:240,days:1,pkg:12,marketRange:"50-800元"},
+
+    // ===== 黑龙江 =====
+    {name:"赫哲族鱼皮制作技艺",region:"黑龙江",level:"国家级",category:"传统技艺",desc:"赫哲族是我国唯一以渔猎为生的少数民族，用大马哈鱼皮经剥皮、晾干、熟制、拼接、缝制等工序制作衣物、饰品。鱼皮画更成为新兴非遗文创品类。2006年列入国家级非遗。鱼皮原料季节性极强，熟制工艺复杂，但市场认知度有限。",rawMat:20,tool:5,rent:5,wage:220,days:1.5,pkg:12,marketRange:"100-800元"},
+
+    // ===== 天津 =====
+    {name:"泥人张彩塑",region:"天津",level:"国家级",category:"传统美术",desc:"泥人张始于清代道光年间，以人物塑像见长。选用天津西郊优质粘土，经捶打、塑形、阴干、烧坯、打磨、彩绘等工序。所塑人物表情生动，衣纹流畅。2006年列入国家级非遗。传承六代，品牌价值高但产量有限。",rawMat:8,tool:4,rent:6,wage:300,days:1.5,pkg:15,marketRange:"80-2000元"},
+    {name:"杨柳青年画",region:"天津杨柳青",level:"国家级",category:"传统美术",desc:"杨柳青年画为中国四大年画之首，采用木版套印与手工彩绘结合的方式制作。以娃娃抱鱼、门神等题材广为人知。2006年列入国家级非遗。年节时需求弹性极小（刚需），平时需求弹性大，季节性定价策略至关重要。",rawMat:4,tool:3,rent:4,wage:200,days:0.3,pkg:5,marketRange:"10-150元"},
+];
+
+// 按名称排序
+ichDatabase.sort((a,b) => a.name.localeCompare(b.name,'zh'));
+
+// ==================== 搜索功能 ====================
+const searchBox = document.getElementById('searchBox');
+const searchResults = document.getElementById('searchResults');
+const productDetail = document.getElementById('productDetail');
+
+function renderSearchResults(query) {
+    if (!query || query.trim() === '') {
+        searchResults.classList.remove('active');
+        return;
+    }
+    const q = query.trim().toLowerCase();
+    const matched = ichDatabase.filter(item =>
+        item.name.toLowerCase().includes(q) ||
+        item.region.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        item.desc.toLowerCase().includes(q)
+    ).slice(0, 20);
+
+    if (matched.length === 0) {
+        searchResults.innerHTML = '<div style="padding:1rem;color:#999;">未找到匹配的非遗产品，请尝试其他关键词</div>';
+    } else {
+        searchResults.innerHTML = matched.map((item, idx) => {
+            const levelClass = item.level === '国家级' ? 'badge-national' : item.level === '省级' ? 'badge-province' : 'badge-city';
+            return `<div class="search-item" onclick="selectProduct(${ichDatabase.indexOf(item)})" data-idx="${idx}">
+                <strong>${item.name} <span class="badge ${levelClass}">${item.level}</span></strong>
+                <small>📍 ${item.region} · ${item.category}</small>
+            </div>`;
+        }).join('');
+    }
+    searchResults.classList.add('active');
+}
+
+searchBox.addEventListener('input', () => renderSearchResults(searchBox.value));
+searchBox.addEventListener('focus', () => { if(searchBox.value) renderSearchResults(searchBox.value); });
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-wrapper')) searchResults.classList.remove('active');
+});
+
+function selectProduct(idx) {
+    const item = ichDatabase[idx];
+    searchBox.value = item.name;
+    document.getElementById('productCategory').value = item.name;
+    document.getElementById('heritageLevel').value = item.level;
+    document.getElementById('rawMaterial').value = item.rawMat;
+    document.getElementById('toolDepreciation').value = item.tool;
+    document.getElementById('rentCost').value = item.rent;
+    document.getElementById('dailyWage').value = item.wage;
+    document.getElementById('workDays').value = item.days;
+    document.getElementById('packagingCost').value = item.pkg;
+    if (item.marketRange) {
+        const avg = item.marketRange.replace(/[^0-9\-]/g,'').split('-').map(Number);
+        const mid = avg.length===2 ? Math.round((avg[0]+avg[1])/2) : avg[0];
+        document.getElementById('marketPrice').value = mid || '';
+    }
+
+    const levelClass = item.level === '国家级' ? 'badge-national' : item.level === '省级' ? 'badge-province' : 'badge-city';
+    productDetail.innerHTML = `
+        <div class="pd-header">🏷️ ${item.name} <span class="badge ${levelClass}">${item.level}</span></div>
+        <div class="pd-row"><span class="pd-label">📍 产地：</span>${item.region}</div>
+        <div class="pd-row"><span class="pd-label">📂 类别：</span>${item.category}</div>
+        <div class="pd-row"><span class="pd-label">📖 简介：</span>${item.desc}</div>
+        <div class="pd-row"><span class="pd-label">💰 市场参考价区间：</span>${item.marketRange || '暂无数据'}</div>
+        <div class="pd-row" style="margin-top:0.5rem;font-size:0.82rem;color:#8D6E63;">✅ 已自动填入参考成本和市场均价，可根据实际调研数据修改</div>
+    `;
+    productDetail.classList.add('active');
+    searchResults.classList.remove('active');
+}
+
+// 初始默认选中第一个产品
+window.addEventListener('DOMContentLoaded', () => {
+    const defaultIdx = ichDatabase.findIndex(x => x.name === '华县皮影');
+    selectProduct(defaultIdx >= 0 ? defaultIdx : 0);
+});
+
+// ==================== 场景预设 ====================
+function setPreset(scenario) {
+    if (scenario === 'springFestival') {
+        document.getElementById('usage').value = '收藏';
+        document.getElementById('heritageLevel').value = '国家级';
+        document.getElementById('complexity').value = '复杂（多道工序，纯手工）';
+        document.getElementById('rawMaterial').value = 45;
+        document.getElementById('toolDepreciation').value = 10;
+        document.getElementById('rentCost').value = 14;
+        document.getElementById('dailyWage').value = 450;
+        document.getElementById('workDays').value = 5;
+        document.getElementById('packagingCost').value = 30;
+        document.getElementById('primaryChannel').value = '景区';
+        document.getElementById('marketPrice').value = '';
+        searchBox.value = '春节旺季场景（手动调整数据）';
+        productDetail.innerHTML = '<div class="pd-header">🏮 春节旺季场景</div><div class="pd-row">此预设模拟收藏级非遗产品在春节旅游旺季的定价场景：高工时、高包装、景区渠道。需求弹性极小，可大胆提价。</div>';
+        productDetail.classList.add('active');
+    } else if (scenario === 'competitor') {
+        document.getElementById('usage').value = '伴手礼';
+        document.getElementById('heritageLevel').value = '省级';
+        document.getElementById('complexity').value = '中等（半手工半工具）';
+        document.getElementById('rawMaterial').value = 18;
+        document.getElementById('toolDepreciation').value = 4;
+        document.getElementById('rentCost').value = 6;
+        document.getElementById('dailyWage').value = 240;
+        document.getElementById('workDays').value = 1;
+        document.getElementById('packagingCost').value = 8;
+        document.getElementById('primaryChannel').value = '电商';
+        document.getElementById('marketPrice').value = 100;
+        searchBox.value = '竞品平价替代场景（手动调整数据）';
+        productDetail.innerHTML = '<div class="pd-header">📉 竞品出现·平价替代场景</div><div class="pd-row">此预设模拟市场上出现机械化生产的平价替代品，手工非遗面临价格竞争。用途为伴手礼（弹性中等），需谨慎定价。</div>';
+        productDetail.classList.add('active');
+    } else if (scenario === 'ipCollab') {
+        document.getElementById('usage').value = '装饰';
+        document.getElementById('heritageLevel').value = '国家级';
+        document.getElementById('complexity').value = '中等（半手工半工具）';
+        document.getElementById('rawMaterial').value = 35;
+        document.getElementById('toolDepreciation').value = 7;
+        document.getElementById('rentCost').value = 10;
+        document.getElementById('dailyWage').value = 350;
+        document.getElementById('workDays').value = 2;
+        document.getElementById('packagingCost').value = 20;
+        document.getElementById('primaryChannel').value = '线下实体店';
+        document.getElementById('marketPrice').value = '';
+        searchBox.value = 'IP联名场景（手动调整数据）';
+        productDetail.innerHTML = '<div class="pd-header">✨ IP联名出圈场景</div><div class="pd-row">此预设模拟非遗产品与知名IP联名后出圈。产品获得额外文化品牌溢价（+30%），建议在零售价基础上叠加。可在结果中查看IP溢价说明。</div>';
+        productDetail.classList.add('active');
+    } else if (scenario === 'wholesale') {
+        document.getElementById('usage').value = '实用';
+        document.getElementById('heritageLevel').value = '省级';
+        document.getElementById('complexity').value = '中等（半手工半工具）';
+        document.getElementById('rawMaterial').value = 20;
+        document.getElementById('toolDepreciation').value = 5;
+        document.getElementById('rentCost').value = 7;
+        document.getElementById('dailyWage').value = 250;
+        document.getElementById('workDays').value = 1.5;
+        document.getElementById('packagingCost').value = 9;
+        document.getElementById('primaryChannel').value = '批发';
+        document.getElementById('marketPrice').value = '';
+        searchBox.value = '批发走量场景（手动调整数据）';
+        productDetail.innerHTML = '<div class="pd-header">📦 批量走货·批发场景</div><div class="pd-row">此预设模拟非遗产品进入批发渠道。批发遵循薄利多销原则，定价接近完全竞争市场的边际成本定价逻辑。批发价=基础定价×0.6。</div>';
+        productDetail.classList.add('active');
+    }
+}
+
+// ==================== 核心定价函数 ====================
+function calculatePrice() {
+    const productName = document.getElementById('productCategory').value || searchBox.value || '（未命名产品）';
+    const heritageLevel = document.getElementById('heritageLevel').value;
+    const complexityRaw = document.getElementById('complexity').value;
+    const usageRaw = document.getElementById('usage').value;
+    const primaryChannel = document.getElementById('primaryChannel').value;
+
+    // 提取复杂度简写
+    let complexity = '中等';
+    if (complexityRaw.includes('复杂')) complexity = '复杂';
+    else if (complexityRaw.includes('简单')) complexity = '简单';
+    else complexity = '中等';
+
+    // 提取用途简写
+    let usage = '装饰';
+    if (usageRaw.includes('收藏')) usage = '收藏';
+    else if (usageRaw.includes('伴手礼')) usage = '伴手礼';
+    else if (usageRaw.includes('实用')) usage = '实用';
+    else if (usageRaw.includes('装饰')) usage = '装饰';
+    else usage = '伴手礼';
+
+    const rawMaterial = parseFloat(document.getElementById('rawMaterial').value) || 0;
+    const toolDepreciation = parseFloat(document.getElementById('toolDepreciation').value) || 0;
+    const rentCost = parseFloat(document.getElementById('rentCost').value) || 0;
+    const dailyWage = parseFloat(document.getElementById('dailyWage').value) || 0;
+    const workDays = parseFloat(document.getElementById('workDays').value) || 0;
+    const packagingCost = parseFloat(document.getElementById('packagingCost').value) || 0;
+
+    const marketPriceInput = document.getElementById('marketPrice').value;
+    const marketPrice = marketPriceInput ? parseFloat(marketPriceInput) : null;
+
+    // ===== 步骤1：成本价（短期成本理论）=====
+    const fixedCost = rawMaterial + toolDepreciation + rentCost;
+    const variableCost = dailyWage * workDays + packagingCost;
+    const totalCost = fixedCost + variableCost;
+    const costPrice = totalCost;
+
+    // ===== 步骤2：基础利润率（需求价格弹性）=====
+    let baseProfitRate, elasticityLabel, elasticityReason;
+    switch (usage) {
+        case '收藏':
+            baseProfitRate = 0.40;
+            elasticityLabel = '需求价格弹性小（|Ed| < 1）';
+            elasticityReason = '收藏级非遗产品具有稀缺性和投资属性，替代品少，消费者对价格变动不敏感，具备"吉芬商品"特征——价格上涨反而可能强化其身份象征价值';
+            break;
+        case '装饰':
+            baseProfitRate = 0.25;
+            elasticityLabel = '需求价格弹性中等（|Ed| ≈ 1）';
+            elasticityReason = '装饰类产品介于收藏和日用之间，消费者对价格有一定敏感度但也愿为文化美感支付溢价，属于垄断竞争市场的典型弹性区间';
+            break;
+        case '伴手礼':
+            baseProfitRate = 0.22;
+            elasticityLabel = '需求价格弹性中等偏大（|Ed| > 1）';
+            elasticityReason = '伴手礼/旅游纪念品面临景区同类产品激烈竞争，消费者容易比价和切换，过高的利润率会显著减少销量，适用薄利多销逻辑';
+            break;
+        case '实用':
+            baseProfitRate = 0.15;
+            elasticityLabel = '需求价格弹性大（|Ed| 较大）';
+            elasticityReason = '实用类非遗产品面临着机械化量产替代品的直接竞争，价格略微上升就可能导致需求大幅转移至替代品，符合完全竞争市场中"价格接受者"特征';
+            break;
+        default:
+            baseProfitRate = 0.25;
+            elasticityLabel = '需求价格弹性中等';
+            elasticityReason = '默认弹性水平';
+    }
+
+    let basePrice = costPrice * (1 + baseProfitRate);
+
+    // 市场均价对比
+    let marketComparisonHTML = '';
+    if (marketPrice && marketPrice > 0) {
+        const deviation = ((basePrice - marketPrice) / marketPrice * 100).toFixed(1);
+        const absDev = Math.abs(parseFloat(deviation));
+        if (parseFloat(deviation) > 20) {
+            marketComparisonHTML = `<div class="warning">⚠️ <strong>市场均价偏离警示：</strong>您的基础定价（¥${basePrice.toFixed(2)}）高于同类市场均价（¥${marketPrice}）约 <strong>${absDev}%</strong>。<br>
+            <em>经济学解释：</em>这表示在当前利润率设定下，产品可能因定价高于均衡价格而产生超额供给（供过于求）。建议：(1) 适当降低利润率（如降至15%），使价格向均衡价格收敛；(2) 或强化非遗级别的差异化壁垒，通过非价格竞争（品质、文化故事）支撑溢价。</div>`;
+        } else if (parseFloat(deviation) < -20) {
+            marketComparisonHTML = `<div class="warning">⚠️ <strong>市场均价偏离警示：</strong>您的基础定价（¥${basePrice.toFixed(2)}）低于同类市场均价（¥${marketPrice}）约 <strong>${absDev}%</strong>。<br>
+            <em>经济学解释：</em>定价显著低于市场均衡价格意味着存在超额需求（供不应求），也可能暗示利润流失。如产品质量相当，可考虑上调利润率，使定价向市场均衡价格靠拢，避免"价低伤品牌"。</div>`;
+        } else {
+            marketComparisonHTML = `<div class="suggestion">✅ <strong>市场均价对比：</strong>基础定价与市场均价偏差约 <strong>${absDev}%</strong>，处于均衡价格附近，定价合理。这表示在该弹性水平下，价格能较好地出清市场（供需均衡）。</div>`;
+        }
+    }
+
+    // ===== 步骤3：溢价调整 =====
+    const heritageMarkup = { '国家级': 0.20, '省级': 0.10, '市级': 0.05 };
+    const complexityMarkup = { '复杂': 0.20, '中等': 0.10, '简单': 0.00 };
+    const channelMarkup = { '景区': 0.40, '线下实体店': 0.25, '电商': 0.15 };
+
+    const heritageRate = heritageMarkup[heritageLevel];
+    const complexityRate = complexityMarkup[complexity];
+
+    // 基准零售价（非遗溢价+工艺溢价）
+    const baseRetailPrice = basePrice * (1 + heritageRate + complexityRate);
+
+    // 各渠道零售价
+    const finalRetailPrices = {};
+    for (const [ch, chRate] of Object.entries(channelMarkup)) {
+        finalRetailPrices[ch] = baseRetailPrice * (1 + chRate);
+    }
+
+    // 批发价
+    const wholesalePrice = baseRetailPrice * 0.60;
+
+    // 用户所选渠道价格
+    let userChannelRetailPrice;
+    if (primaryChannel === '批发') {
+        userChannelRetailPrice = wholesalePrice;
+    } else {
+        userChannelRetailPrice = finalRetailPrices[primaryChannel];
+    }
+
+    // IP联名检测
+    const isIPCollab = (searchBox.value && searchBox.value.includes('IP联名'));
+    let ipPremiumHTML = '';
+    let ipAdjustedRetail = userChannelRetailPrice;
+    if (isIPCollab) {
+        const ipPremium = userChannelRetailPrice * 0.30;
+        ipAdjustedRetail = userChannelRetailPrice * 1.30;
+        ipPremiumHTML = `<div class="suggestion">✨ <strong>IP联名溢价（+30%）：</strong>检测到IP联名场景。根据垄断竞争市场中的品牌差异化理论，IP联名实质是借势外部品牌资产，在非遗产品原有文化溢价基础上叠加"品牌租值"。联名后零售价 = <strong>¥${ipAdjustedRetail.toFixed(2)}</strong>（原¥${userChannelRetailPrice.toFixed(2)} + 溢价¥${ipPremium.toFixed(2)}）。<br>
+        <em>经济学原理：</em>IP联名降低了消费者的信息不对称（品牌信号作用），同时创造了新的差异化壁垒，使产品需求曲线向右移动且更陡峭（弹性变小），从而支撑更高定价。</div>`;
+    }
+
+    const fmt = (val) => val.toFixed(2);
+
+    // ===== 构建输出HTML =====
+    let html = '';
+
+    // 基础数据汇总
+    html += `<div style="margin-bottom:0.8rem;font-size:0.95rem;">
+        <strong>🏷️ 产品：</strong>${productName}
+        <span class="badge ${heritageLevel==='国家级'?'badge-national':heritageLevel==='省级'?'badge-province':'badge-city'}">${heritageLevel}</span>
+        | 复杂度：${complexity} | 用途：${usage} | 渠道：${primaryChannel}</div>`;
+
+    // 定价卡片
+    html += `<div class="price-box">
+        <div class="price-item"><div class="price-label">💰 成本价（停产点）</div><div class="price-value">¥${fmt(costPrice)}</div><div style="font-size:0.7rem;color:#999;">ATC≈TC</div></div>
+        <div class="price-item highlight"><div class="price-label">🏷️ 建议零售价<br><small>(${primaryChannel})</small></div><div class="price-value">¥${fmt(isIPCollab?ipAdjustedRetail:userChannelRetailPrice)}</div></div>
+        <div class="price-item"><div class="price-label">📦 批发价</div><div class="price-value small">¥${fmt(wholesalePrice)}</div></div>
+        <div class="price-item"><div class="price-label">📈 基础定价</div><div class="price-value small">¥${fmt(basePrice)}</div><div style="font-size:0.7rem;color:#999;">利润率${(baseProfitRate*100).toFixed(0)}%</div></div>
+    </div>`;
+
+    // 渠道价格表
+    html += `<table class="channel-table">
+        <tr><th>渠道</th><th>景区零售</th><th>线下实体店</th><th>电商</th><th>批发价</th></tr>
+        <tr>
+            <td>价格</td>
+            <td class="${primaryChannel==='景区'?'active-row':''}">¥${fmt(finalRetailPrices['景区'])}</td>
+            <td class="${primaryChannel==='线下实体店'?'active-row':''}">¥${fmt(finalRetailPrices['线下实体店'])}</td>
+            <td class="${primaryChannel==='电商'?'active-row':''}">¥${fmt(finalRetailPrices['电商'])}</td>
+            <td class="${primaryChannel==='批发'?'active-row':''}">¥${fmt(wholesalePrice)}</td>
+        </tr>
+        <tr style="font-size:0.78rem;color:#888;">
+            <td>溢价率</td><td>+40%</td><td>+25%</td><td>+15%</td><td>×0.6</td>
+        </tr>
+    </table>`;
+
+    // 市场均价对比
+    if (marketComparisonHTML) html += marketComparisonHTML;
+    if (ipPremiumHTML) html += ipPremiumHTML;
+
+    // ===== 经济学依据详解 =====
+    html += `<div class="explanation"><h3>📖 定价依据——微观经济学原理逐条解析</h3><ul>`;
+
+    // 步骤1
+    html += `<li>
+        <strong>【步骤一】成本底线：短期成本理论</strong> <span class="econ-note">教材：短期成本章节</span><br>
+        固定成本 FC = 原料(${fmt(rawMaterial)}) + 工具损耗(${fmt(toolDepreciation)}) + 场地租金(${fmt(rentCost)}) = <strong>¥${fmt(fixedCost)}</strong><br>
+        可变成本 VC = 工时费(${dailyWage}元/天 × ${workDays}天) + 包装(${fmt(packagingCost)}) = <strong>¥${fmt(variableCost)}</strong><br>
+        总成本 TC = FC + VC = <strong>¥${fmt(totalCost)}</strong>。由于按单件计算，平均总成本 ATC ≈ TC。<br>
+        <em>经济含义：</em>此价格为<strong>停产点</strong>（shutdown point）。若市场价格低于此价，手艺人短期可变成本都无法收回，应暂停生产。这也是产品定价的绝对底线。
+    </li>`;
+
+    // 步骤2
+    html += `<li>
+        <strong>【步骤二】基础定价：需求价格弹性(Ed)决定利润率</strong> <span class="econ-note">教材：弹性章节</span><br>
+        该产品用途为"${usage}"，<strong>${elasticityLabel}</strong>。<br>
+        <em>原因：</em>${elasticityReason}<br>
+        根据"弹性越大、利润率越低"的定价原理（MR = P(1 - 1/|Ed|)），基础利润率取 <strong>${(baseProfitRate*100).toFixed(0)}%</strong>。<br>
+        基础定价 = 成本价 × (1 + ${(baseProfitRate*100).toFixed(0)}%) = ¥${fmt(costPrice)} × ${(1+baseProfitRate).toFixed(2)} = <strong>¥${fmt(basePrice)}</strong>。
+    </li>`;
+
+    // 步骤3
+    html += `<li>
+        <strong>【步骤三A】产品差异化溢价：垄断竞争市场结构</strong> <span class="econ-note">教材：市场结构章节</span><br>
+        非遗产品处于<strong>垄断竞争市场</strong>——有众多卖方，但每家产品因文化独特性而具备一定垄断势力（market power），可获取超额利润。<br>
+        · 非遗级别溢价：${heritageLevel} +${(heritageRate*100).toFixed(0)}%（级别越高，文化稀缺性越强，垄断势力越大）<br>
+        · 工艺复杂度溢价：${complexity} +${(complexityRate*100).toFixed(0)}%（复杂工艺构成进入壁垒，减少替代威胁）<br>
+        基准零售价 = ¥${fmt(basePrice)} × (1 + ${(heritageRate*100).toFixed(0)}% + ${(complexityRate*100).toFixed(0)}%) = <strong>¥${fmt(baseRetailPrice)}</strong>
+    </li>`;
+
+    html += `<li>
+        <strong>【步骤三B】渠道溢价：消费者支付意愿与渠道成本差异</strong> <span class="econ-note">教材：价格歧视 & 消费者剩余</span><br>
+        不同渠道对应不同的消费者群体和支付意愿（WTP）：<br>
+        · <strong>景区 +40%</strong>：景区消费者处于"旅行消费心态"，支付意愿高，消费者剩余大，可实施三级价格歧视中的高定价<br>
+        · <strong>线下实体店 +25%</strong>：承担店铺租金和体验服务成本，消费者可实际触摸产品，体验溢价支撑较高定价<br>
+        · <strong>电商 +15%</strong>：电商价格透明，消费者搜索成本低，不同卖家间比价容易，信息不对称小，溢价空间有限<br>
+        · <strong>批发 ×0.6</strong>：批发接近完全竞争市场逻辑，买方（批发商）具有买方垄断势力，定价向边际成本靠拢，薄利多销<br>
+        最终<strong>${primaryChannel}</strong>价 = <strong>¥${fmt(userChannelRetailPrice)}</strong>
+    </li>`;
+
+    // 批发价经济学
+    html += `<li>
+        <strong>【补充】批发价的完全竞争逻辑</strong> <span class="econ-note">教材：完全竞争市场</span><br>
+        批发市场中卖方议价能力弱，批发商作为中间商具有"买方垄断"特征。定价 = 基准零售价 × 0.6 = <strong>¥${fmt(wholesalePrice)}</strong>。<br>
+        <em>经济学原理：</em>在完全竞争批发市场中，单个手艺人只是价格接受者（price taker），没有定价权。走量策略要求价格贴近平均成本，利润来自规模而非单件加价——这是工业化非遗产品的必由之路。
+    </li>`;
+    html += `</ul></div>`;
+
+    // ===== 销售策略建议 =====
+    html += `<div class="explanation" style="border-left-color:#2E7D32;"><h3>💡 销售策略建议（经济学视角）</h3><ul>`;
+    if (usage === '收藏') {
+        html += `<li><strong>低弹性策略：</strong>收藏类需求弹性小，建议适当提价并配合限量发售（人为制造稀缺），利用"凡勃伦效应"——价格越高、需求反而越大的炫耀性消费心理。</li>`;
+    } else if (usage === '实用') {
+        html += `<li><strong>高弹性策略：</strong>实用类面临替代品竞争，应以成本控制为核心，主打"性价比+文化故事"差异化，避免与工业化产品正面价格竞争。</li>`;
+    } else if (usage === '伴手礼' || usage === '装饰') {
+        html += `<li><strong>中等弹性策略：</strong>挖掘文化符号价值（如地域特色IP），将竞争从价格维度转移到非价格维度（品质、故事、体验），降低消费者价格敏感度。</li>`;
+    }
+    if (heritageLevel === '国家级') {
+        html += `<li><strong>稀缺性变现：</strong>国家级非遗全国仅数百项，应突出"国字号"背书，在产品说明和包装上强化国家级标识，将制度认证转化为品牌租值。</li>`;
+    }
+    if (primaryChannel === '景区') {
+        html += `<li><strong>景区定价权：</strong>景区消费者搜索成本高、比价意愿低，是三级价格歧视的理想场景。可配合节假日、旺季进一步上浮10-15%，最大化消费者剩余转化。</li>`;
+    } else if (primaryChannel === '电商') {
+        html += `<li><strong>电商透明化挑战：</strong>电商比价成本极低，建议强化文化叙事（短视频、传承人故事），通过内容营销制造差异化，从"价格竞争"转向"价值竞争"。</li>`;
+    } else if (primaryChannel === '批发') {
+        html += `<li><strong>批发走量逻辑：</strong>批发利润来自销量×单件微利，建议设定最小起订量（如50件起），并利用规模效应压低可变成本，使ATC曲线下移。</li>`;
+    }
+    html += `<li><strong>动态调价建议：</strong>定期复核工时费（工资刚性通常向上）、原料价格（关注通胀对FC的影响）、竞品价格（市场均衡价格漂移），及时更新定价参数，避免偏离均衡。</li>`;
+    html += `</ul></div>`;
+
+    // 显示结果
+    document.getElementById('outputContent').innerHTML = html;
+    document.getElementById('outputModule').classList.add('active');
+    document.getElementById('outputModule').scrollIntoView({ behavior: 'smooth' });
+}
+
+// 页面加载时默认计算一次
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(calculatePrice, 300);
+});
+</script>
+</body>
+</html>

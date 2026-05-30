@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小V影像助手</title>
+<style>
+:root {
+  --bg: #0a0a0f; --card: #12121a; --border: #1e1e30;
+  --accent: #6366f1; --accent2: #8b5cf6; --text: #e2e2f0;
+  --text2: #9898b0; --green: #22c55e;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg); color:var(--text); height:100vh; display:flex;
+}
+/* Sidebar */
+.sidebar{
+  width:260px; background:var(--card); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; padding:20px; gap:16px; flex-shrink:0;
+}
+.sidebar h2{font-size:1.1rem; color:var(--accent2)}
+.sidebar .status{
+  padding:8px 12px; border-radius:8px; font-size:0.78rem;
+  background:rgba(34,197,94,0.08); color:var(--green); border:1px solid rgba(34,197,94,0.2);
+}
+.tool-list{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px}
+.tool-item{
+  padding:8px 10px; border-radius:8px; font-size:0.78rem;
+  background:rgba(99,102,241,0.04); border:1px solid transparent;
+  display:flex; align-items:center; gap:8px;
+}
+.tool-item.real{border-color:rgba(34,197,94,0.15)}
+.tool-item .badge{
+  margin-left:auto; padding:1px 6px; border-radius:4px; font-size:0.65rem; font-weight:700;
+}
+.badge-real{background:rgba(34,197,94,0.12); color:#4ade80}
+.badge-demo{background:rgba(245,158,11,0.12); color:#fbbf24}
+/* Main */
+.main{flex:1; display:flex; flex-direction:column; overflow:hidden}
+.header{
+  padding:16px 24px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:12px;
+}
+.header h1{font-size:1.2rem}
+.preview-area{display:none; padding:8px 24px; border-bottom:1px solid var(--border)}
+.preview-area.show{display:block}
+.preview-area img{max-height:200px; border-radius:8px}
+.chat-area{flex:1; overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:12px}
+.msg{display:flex; gap:10px; max-width:85%}
+.msg.user{flex-direction:row-reverse; align-self:flex-end}
+.msg.assistant{align-self:flex-start}
+.msg .avatar{font-size:1.5rem; flex-shrink:0}
+.msg .bubble{
+  padding:12px 16px; border-radius:16px; font-size:0.9rem; line-height:1.6;
+  background:var(--card); border:1px solid var(--border);
+}
+.msg.user .bubble{background:rgba(99,102,241,0.12); border-color:rgba(99,102,241,0.3)}
+.msg .tool-badge{
+  display:inline-block; padding:2px 8px; border-radius:6px; font-size:0.7rem;
+  background:rgba(139,92,246,0.1); color:#a78bfa; margin-top:6px;
+}
+.typing{padding:12px 24px; color:var(--text2); font-size:0.85rem}
+.input-area{
+  padding:12px 24px 20px; border-top:1px solid var(--border);
+  display:flex; gap:10px; align-items:flex-end;
+}
+.input-area textarea{
+  flex:1; padding:12px 16px; border-radius:12px; font-size:0.9rem;
+  background:var(--card); color:var(--text); border:1px solid var(--border);
+  resize:none; outline:none; font-family:inherit; max-height:80px;
+}
+.input-area textarea:focus{border-color:var(--accent)}
+.input-area button{
+  padding:10px 20px; border-radius:12px; border:none; cursor:pointer;
+  background:var(--accent); color:#fff; font-weight:600; font-size:0.85rem;
+  white-space:nowrap;
+}
+.input-area button:hover{opacity:0.9}
+.input-area button:disabled{opacity:0.4; cursor:default}
+.quick-chips{padding:8px 24px; display:flex; gap:6px; flex-wrap:wrap}
+.chip{
+  padding:4px 12px; border-radius:16px; font-size:0.75rem; cursor:pointer;
+  background:var(--card); border:1px solid var(--border); color:var(--text2);
+}
+.chip:hover{border-color:var(--accent); color:var(--text)}
+@media(max-width:700px){.sidebar{display:none}}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>🤖 小V影像助手</h2>
+  <div class="status" id="status">🔗 连接中...</div>
+  <div style="font-size:0.75rem;color:var(--text2)">
+    LLM: DeepSeek · v2.0<br>
+    工具: <span id="toolCount">-</span> 真实实现
+  </div>
+  <div class="tool-list" id="toolList">加载中...</div>
+</div>
+
+<div class="main">
+  <div class="header">
+    <span style="font-size:1.5rem">🤖</span>
+    <h1>小V影像助手</h1>
+    <span style="font-size:0.7rem;color:var(--green);background:rgba(34,197,94,0.08);padding:2px 8px;border-radius:8px">v2.0 LLM</span>
+  </div>
+
+  <div class="preview-area" id="previewArea">
+    <img id="previewImg" src="" alt="预览">
+  </div>
+
+  <div class="chat-area" id="chatArea">
+    <div class="msg assistant">
+      <div class="avatar">🤖</div>
+      <div class="bubble">
+        你好！我是小V影像助手 👋<br><br>
+        试试对我说：<br>
+        • "帮我看看这张照片是什么场景"<br>
+        • "把照片增强一下"<br>
+        • "转换成动漫风格"<br>
+        • "帮我分析构图"
+      </div>
+    </div>
+  </div>
+
+  <div id="typingArea" class="typing" style="display:none">🤖 小V思考中...</div>
+
+  <div class="quick-chips">
+    <span class="chip" onclick="quickAsk('帮我看看这张照片是什么场景，该用什么模式拍')">🔍 识场景</span>
+    <span class="chip" onclick="quickAsk('把照片增强一下')">📸 增强</span>
+    <span class="chip" onclick="quickAsk('转换成动漫风格')">🎨 动漫</span>
+    <span class="chip" onclick="quickAsk('帮我看看构图怎么样')">📐 构图</span>
+    <span class="chip" onclick="quickAsk('调成电影感的色调')">🎬 调色</span>
+    <span class="chip" onclick="quickAsk('帮我美颜要自然一点')">✨ 美颜</span>
+    <span class="chip" onclick="quickAsk('裁剪成16:9')">✂️ 裁剪</span>
+    <span class="chip" onclick="quickAsk('让照片动起来')">🎬 动态</span>
+  </div>
+
+  <div class="input-area">
+    <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="handleImageSelect(event)">
+    <button type="button" onclick="document.getElementById('imageInput').click()" style="background:var(--card);color:var(--text);font-size:1.2rem;padding:10px 14px">📎</button>
+    <textarea id="userInput" rows="1" placeholder="描述你想对照片做什么..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+    <button onclick="sendMessage()" id="sendBtn">发送</button>
+  </div>
+</div>
+
+<script>
+// ---- State ----
+let selectedImage = null;
+let selectedImageB64 = null;
+const API = '';
+
+// ---- Init ----
+async function init() {
+  try {
+    const r = await fetch(API + '/health');
+    const d = await r.json();
+    document.getElementById('status').innerHTML = d.llm.ok
+      ? '🟢 LLM: ' + d.llm.provider + '/' + d.llm.model
+      : '🔴 LLM离线';
+    loadTools();
+  } catch(e) {
+    document.getElementById('status').innerHTML = '🔴 服务未启动<br><small>运行: python server/api_server.py</small>';
+  }
+}
+
+async function loadTools() {
+  try {
+    const r = await fetch(API + '/tools');
+    const d = await r.json();
+    document.getElementById('toolCount').textContent = d.real_count + '/' + d.total;
+    const emojis = {
+      photo_enhance:'📸', style_transfer:'🎨', composition_guide:'📐',
+      object_remove:'🧹', portrait_beautify:'✨', scene_recognize:'🔍',
+      color_grading:'🎬', smart_crop:'✂️', ai_expand:'🔲', motion_photo:'🎬'
+    };
+    document.getElementById('toolList').innerHTML = d.tools.map(t =>
+      `<div class="tool-item ${t.is_real?'real':''}">
+        <span>${emojis[t.name]||'🔧'}</span>
+        <span>${t.name.replace(/_/g,' ')}</span>
+        <span class="badge ${t.is_real?'badge-real':'badge-demo'}">${t.is_real?'REAL':'DEMO'}</span>
+      </div>`
+    ).join('');
+  } catch(e) {}
+}
+
+// ---- Chat ----
+function addMessage(role, text, tools) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  const avatar = role === 'user' ? '👤' : '🤖';
+  let html = text.replace(/\n/g, '<br>');
+  if (tools && tools.length) {
+    html += '<br>' + tools.map(t =>
+      `<span class="tool-badge">🔧 ${t.name}</span>`
+    ).join(' ');
+  }
+  div.innerHTML = `<div class="avatar">${avatar}</div><div class="bubble">${html}</div>`;
+  document.getElementById('chatArea').appendChild(div);
+  div.scrollIntoView({behavior:'smooth'});
+}
+
+function showTyping(show) {
+  document.getElementById('typingArea').style.display = show ? 'block' : 'none';
+  document.getElementById('sendBtn').disabled = show;
+}
+
+function showPreview(b64) {
+  if (!b64) return;
+  const area = document.getElementById('previewArea');
+  area.classList.add('show');
+  document.getElementById('previewImg').src = b64.startsWith('data:') ? b64 : 'data:image/jpeg;base64,' + b64;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  addMessage('user', text + (selectedImage ? ' 📎' : ''));
+  input.value = '';
+  showTyping(true);
+
+  try {
+    let resp;
+    if (selectedImageB64) {
+      // Send as multipart
+      const blob = base64ToBlob(selectedImageB64);
+      const fd = new FormData();
+      fd.append('content', text);
+      fd.append('image', blob, 'image.jpg');
+      resp = await fetch(API + '/chat/image', {method:'POST', body:fd});
+    } else {
+      resp = await fetch(API + '/chat', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({content: text})
+      });
+    }
+
+    const data = await resp.json();
+    addMessage('assistant', data.content, data.tool_calls);
+    if (data.preview_url) showPreview(data.preview_url);
+  } catch(e) {
+    addMessage('assistant', '连接失败。请确认后端已启动：\npython server/api_server.py');
+  }
+
+  showTyping(false);
+  selectedImage = null;
+  selectedImageB64 = null;
+}
+
+function quickAsk(text) {
+  document.getElementById('userInput').value = text;
+  sendMessage();
+}
+
+function handleImageSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedImage = file;
+  const reader = new FileReader();
+  reader.onload = () => {
+    selectedImageB64 = reader.result.split(',')[1];
+    // Show preview in chat
+    const div = document.createElement('div');
+    div.className = 'msg user';
+    div.innerHTML = `<div class="avatar">👤</div><div class="bubble"><img src="${reader.result}" style="max-width:200px;border-radius:8px"><br>📎 ${file.name}</div>`;
+    document.getElementById('chatArea').appendChild(div);
+    div.scrollIntoView({behavior:'smooth'});
+  };
+  reader.readAsDataURL(file);
+}
+
+function base64ToBlob(b64) {
+  const parts = b64.split(',');
+  const byteChars = atob(parts.length > 1 ? parts[1] : parts[0]);
+  const byteNums = new Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+  return new Blob([new Uint8Array(byteNums)], {type:'image/jpeg'});
+}
+
+init();
+</script>
+</body>
+</html>

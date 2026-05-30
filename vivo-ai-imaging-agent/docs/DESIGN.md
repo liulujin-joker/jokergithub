@@ -95,18 +95,22 @@
 
 智能体可调度的10大AI影像工具：
 
-| 编号 | 工具名称 | 功能描述 | 应用场景 |
-|------|----------|----------|----------|
-| 1 | photo_enhance | 智能画质增强、超分辨率、HDR | 老照片修复、暗光增强 |
-| 2 | style_transfer | 20+艺术风格转换 | 社交分享、艺术创作 |
-| 3 | composition_guide | 实时构图分析与建议 | 拍摄辅助、摄影教学 |
-| 4 | object_remove | 智能物体消除与背景填充 | 旅游照去路人、去水印 |
-| 5 | portrait_beautify | 自然美颜、智能美妆 | 自拍美化、人像精修 |
-| 6 | scene_recognize | 30+场景识别与参数推荐 | 自动模式选择 |
-| 7 | color_grading | 电影级调色、季节风格 | 氛围营造、风格化 |
-| 8 | smart_crop | AI智能裁剪与构图优化 | 二次构图、多平台适配 |
-| 9 | ai_expand | AI画面扩展与场景补全 | 创意扩图、比例调整 |
-| 10 | motion_photo | 静态照片转动态效果 | 动态壁纸、创意分享 |
+| 编号 | 工具名称 | 功能描述 | 实现状态 | 实现方式 |
+|------|----------|----------|----------|----------|
+| 1 | photo_enhance | 智能画质增强、超分辨率、HDR | ✅ 真实 | PIL 自适应亮度/对比度/锐化/色彩 |
+| 2 | style_transfer | 7种本地风格 + AI风格 | ✅ 真实 | PIL滤镜(黑白/复古/油画/水彩/素描) + HF API |
+| 3 | composition_guide | 实时构图分析与建议 | ✅ 真实 | PIL+numpy 边缘检测 + 三分法评分 |
+| 4 | object_remove | 智能物体消除与背景填充 | 🔲 Demo | 需 SAM + LaMa API (复赛vivo云测) |
+| 5 | portrait_beautify | 自然美颜、智能美妆 | ✅ 真实 | PIL 肤色检测 + 高斯柔焦 + 美白 |
+| 6 | scene_recognize | 30+场景识别与参数推荐 | ✅ 真实 | HF CLIP API → 传统图像统计回退 |
+| 7 | color_grading | 电影级调色、季节风格 | ✅ 真实 | PIL+numpy 色彩矩阵变换 (9种预设) |
+| 8 | smart_crop | AI智能裁剪与构图优化 | ✅ 真实 | PIL 显著性检测 + 多比例评分 |
+| 9 | ai_expand | AI画面扩展与场景补全 | 🔲 Demo | 需 SD Outpainting API (复赛vivo云测) |
+| 10 | motion_photo | 静态照片转动态效果 | ✅ 真实 | PIL 视差3D偏移 + 波浪扭曲 (输出GIF) |
+
+> **实现进度: 8/10 工具真实实现 (80%)**
+> 
+> 仅 `object_remove` 和 `ai_expand` 需云端 AI 模型，待复赛接入 vivo 云测平台。
 
 ### 工具注册机制
 ```python
@@ -273,4 +277,41 @@ python main.py --query "帮我把这张照片变成动漫风格"
 ---
 
 **作品团队：AIGC Innovation Team**  
-**提交日期：2026年5月**
+**提交日期：2026年5月**  
+**最后更新：2026年5月30日**
+
+---
+
+## 九、v2.0 更新日志 (2026-05-30)
+
+### 重大升级：从 Demo 到真实智能体
+
+#### 新增 LLM 驱动核心
+- **LLMClient** (`src/llm/client.py`): 统一大模型调用接口，支持 DeepSeek / vivo蓝心 / OpenAI
+- **LLMPlanner** (`src/agent/llm_planner.py`): 基于 Function Calling 的智能规划器，替代原有正则关键词匹配
+- 意图理解从 `if "增强" in query` 升级为 LLM 语义理解
+
+#### 真实工具实现 (8/10)
+- **scene_recognize**: HuggingFace CLIP API (零样本分类) → 传统图像统计回退
+- **composition_guide**: PIL+numpy 边缘检测 + 3x3网格显著性分析 + 三分法/对称/水平评分
+- **photo_enhance**: PIL ImageEnhance 自适应亮度/对比度/锐化/色彩增强
+- **color_grading**: PIL+numpy RGB通道矩阵变换，9种预设风格
+- **smart_crop**: 显著性定位 + 5种比例候选 + 综合评分系统
+- **portrait_beautify**: 肤色检测(HSV阈值) + 高斯柔焦磨皮 + 美白算法
+- **style_transfer**: PIL滤镜(黑白/复古/油画/水彩/素描/浮雕) + HF API AI风格
+- **motion_photo**: PIL 正弦视差偏移(3D效果) + 波浪扭曲(微风效果) → 输出GIF
+
+#### 运行模式
+```bash
+python main.py              # 规则引擎模式 (Demo)
+python main.py --llm        # LLM驱动模式 (需要 DEEPSEEK_API_KEY)
+python main.py --check      # 系统状态检查
+python main.py --llm --demo # LLM演示模式
+```
+
+#### 架构
+```
+用户输入 → LLM (Function Calling) → 选择工具+参数
+  → ToolRegistry.execute() → 真实工具 (PIL/HF API)
+  → LLM Reflect → 自然语言回复
+```

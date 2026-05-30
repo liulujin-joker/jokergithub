@@ -83,10 +83,23 @@ class ToolRegistry:
         ]
 
     def execute(self, tool_name: str, **kwargs) -> Dict[str, Any]:
-        """执行指定工具"""
+        """
+        执行指定工具
+
+        优先级: 真实实现 > 模拟实现
+        """
+        # 尝试使用真实实现
+        try:
+            from .real_tools import has_real_implementation, execute_real_tool
+            if has_real_implementation(tool_name):
+                return execute_real_tool(tool_name, **kwargs)
+        except ImportError:
+            pass
+
+        # 回退到模拟实现
         tool = self.get(tool_name)
         if not tool:
-            return {"success": False, "error": f"工具 '{tool_name}' 未注册"}
+            return {"success": False, "error": f"Tool '{tool_name}' not registered"}
         try:
             return tool.execute(**kwargs)
         except Exception as e:

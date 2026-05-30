@@ -1,41 +1,29 @@
 #!/usr/bin/env python3
 """
-================================================================================
-  vivo AI 影像助手 智能体 - 手机AI助手，未来AI影像体验设计
-================================================================================
+vivo AI 影像助手 智能体 - 手机AI助手，未来AI影像体验设计
 
 中国高校计算机大赛·AIGC创新赛 参赛作品
-
 赛道: 手机AI助手，未来AI影像体验设计
 
-这是一个面向未来手机 AI 影像体验的智能体（Agent）系统。
-它不仅仅是调用单个AI模型，而是一个具备"感知-思考-规划-行动-反思"
-完整链路的智能助手。
-
-核心理念:
-  - 从"用户操作工具" 到 "AI理解意图并主动服务"
-  - 从"单一功能调用" 到"多工具协同编排"
-  - 从"一次性交互" 到"持续学习用户偏好"
-
-运行方式:
-  python main.py                    # 交互式对话
-  python main.py --demo             # 演示模式
-  python main.py --query "帮我把这张照片变成动漫风格"
-================================================================================
+Modes:
+  python main.py                      # Interactive (rule-based demo)
+  python main.py --llm                # Interactive (LLM-driven, needs DEEPSEEK_API_KEY)
+  python main.py --demo               # Demo mode
+  python main.py --query "xxx"        # Single query
+  python main.py --check              # Check LLM & tools status
 """
 
 import sys
 import os
 import io
 
-# 强制 UTF-8 输出（解决 Windows GBK 编码问题）
+# Force UTF-8 output (fix Windows GBK encoding issues)
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-# 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src.models.schemas import Message, Role, ImageIntent, IntentType
+from src.models.schemas import Message, Role
 from src.tools.tool_registry import ToolRegistry
 from src.tools.imaging_tools import (
     PhotoEnhanceTool, StyleTransferTool, CompositionGuideTool,
@@ -51,240 +39,309 @@ from src.utils.logger import AgentLogger
 
 class VivoImagingAgent:
     """
-    vivo AI 影像助手 智能体
+    vivo AI 影像助手智能体 - 核心 Agent 类
 
-    这是整个系统的核心类，负责:
-    1. 初始化所有组件（工具、记忆、规划器、执行器）
-    2. 处理用户输入（文字/图片）
-    3. 编排 Think -> Plan -> Execute -> Reflect 完整链路
-    4. 生成自然语言回复
+    Two planner modes:
+    - "rule": Regex-based intent parsing (demo/concept)
+    - "llm":  LLM-driven with Function Calling (real AI)
     """
 
-    def __init__(self):
+    def __init__(self, use_llm: bool = False):
         self.logger = AgentLogger("VivoImagingAgent")
+        self.use_llm = use_llm
 
-        # 1. 初始化工具注册中心
+        # 1. Tool registry
         self.tool_registry = ToolRegistry()
         self._register_all_tools()
 
-        # 2. 初始化记忆系统
+        # 2. Memory system
         self.memory = MemoryManager(short_term_size=10)
 
-        # 3. 初始化规划器（含意图解析）
-        self.planner = AgentPlanner(
-            memory=self.memory,
-            tool_registry=self.tool_registry
-        )
+        # 3. Planner (LLM or rule-based)
+        if use_llm:
+            from src.agent.llm_planner import LLMPlanner
+            self.planner = LLMPlanner(
+                memory=self.memory,
+                tool_registry=self.tool_registry,
+            )
+            self.logger.info("Using LLM-driven planner (DeepSeek)")
+        else:
+            self.planner = AgentPlanner(
+                memory=self.memory,
+                tool_registry=self.tool_registry,
+            )
+            self.logger.info("Using rule-based planner (demo mode)")
 
-        # 4. 初始化执行器
+        # 4. Executor
         self.executor = ToolExecutor(
             tool_registry=self.tool_registry,
-            memory=self.memory
+            memory=self.memory,
         )
 
-        self.logger.info("🚀 vivo AI 影像助手智能体初始化完成！")
+        self.logger.info("vivo AI Imaging Agent initialized!")
 
     def _register_all_tools(self):
-        """注册所有AI影像工具"""
         tools = [
-            PhotoEnhanceTool(),
-            StyleTransferTool(),
-            CompositionGuideTool(),
-            ObjectRemoveTool(),
-            PortraitBeautifyTool(),
-            SceneRecognizeTool(),
-            ColorGradingTool(),
-            SmartCropTool(),
-            AIExpandTool(),
-            MotionPhotoTool(),
+            PhotoEnhanceTool(), StyleTransferTool(), CompositionGuideTool(),
+            ObjectRemoveTool(), PortraitBeautifyTool(), SceneRecognizeTool(),
+            ColorGradingTool(), SmartCropTool(), AIExpandTool(), MotionPhotoTool(),
         ]
         for tool in tools:
             self.tool_registry.register(tool)
+        self.logger.info(f"Registered {len(tools)} AI imaging tools")
 
-        self.logger.info(f"已注册 {len(tools)} 个AI影像工具")
+    def _load_image(self, image_path: str):
+        """Load image from path, return base64"""
+        from src.utils.image_utils import ImageProcessor
+        return ImageProcessor.load_as_base64(image_path)
 
     def chat(self, user_input: str, image_path: str = None) -> str:
-        """
-        核心对话接口
+        """Core chat interface"""
+        self.logger.info(f"User: {user_input}")
 
-        Args:
-            user_input: 用户文字输入
-            image_path: 可选的图片路径
-
-        Returns:
-            智能体的回复文本
-        """
-        self.logger.info(f"用户: {user_input}")
-
-        # 加载图片（如果有）
+        # Load image if provided
         image_base64 = None
         if image_path:
-            from src.utils.image_utils import ImageProcessor
-            image_base64 = ImageProcessor.load_as_base64(image_path)
+            image_base64 = self._load_image(image_path)
             if image_base64:
-                self.logger.info(f"已加载图片: {image_path}")
+                self.logger.info(f"Loaded image: {image_path}")
 
-        # 构建消息
+        # Build message
         user_message = Message(
             role=Role.USER,
             content=user_input,
-            image_base64=image_base64
+            image_base64=image_base64,
         )
 
-        # === Think: 理解意图 ===
-        intent, tools = self.planner.think(user_message)
-        self.logger.info(f"意图: {intent.intent_type.value} (置信度: {intent.confidence:.0%})")
+        if self.use_llm:
+            return self._chat_llm(user_message)
+        else:
+            return self._chat_rule(user_message)
 
-        # === Plan: 制定计划 ===
-        tool_calls = self.planner.plan(intent, tools)
-        self.logger.info(f"计划调用 {len(tool_calls)} 个工具")
+    def _chat_llm(self, user_message: Message) -> str:
+        """LLM-driven chat pipeline"""
+        # Think + Plan: LLM selects tools via Function Calling
+        tool_calls = self.planner.think_and_plan(user_message)
+        self.logger.info(f"LLM planned {len(tool_calls)} tool call(s)")
 
-        # === Execute: 执行工具 ===
+        if not tool_calls:
+            # No tools needed (pure text response)
+            response = self.planner.reflect([], user_message.content)
+            self.memory.add_assistant_message(response, actions=[])
+            return response
+
+        # Execute tools
         results = self.executor.execute(tool_calls)
+        self.logger.info(f"Executed {len(results)} tool(s)")
 
-        # === Reflect: 反思 & 生成回复 ===
-        response = self.planner.reflect(results)
+        # Reflect: LLM generates response from results
+        response = self.planner.reflect(results, user_message.content)
 
-        # 记录助手消息
         self.memory.add_assistant_message(
             response,
-            actions=[tc.tool_name for tc in tool_calls]
+            actions=[tc.tool_name for tc in tool_calls],
         )
+        return response
 
-        self.logger.info(f"助手: {response[:100]}...")
+    def _chat_rule(self, user_message: Message) -> str:
+        """Rule-based chat pipeline (original demo)"""
+        intent, tools = self.planner.think(user_message)
+        self.logger.info(f"Intent: {intent.intent_type.value} (confidence: {intent.confidence:.0%})")
+
+        tool_calls = self.planner.plan(intent, tools)
+        self.logger.info(f"Planned {len(tool_calls)} tool call(s)")
+
+        results = self.executor.execute(tool_calls)
+        response = self.planner.reflect(results)
+
+        self.memory.add_assistant_message(
+            response,
+            actions=[tc.tool_name for tc in tool_calls],
+        )
         return response
 
     def chat_with_image(self, image_path: str, user_input: str = "") -> str:
-        """带图片的对话（便捷方法）"""
         if not user_input:
-            user_input = "帮我分析一下这张照片"
+            user_input = "Analyze this photo for me"
         return self.chat(user_input, image_path)
 
     def show_capabilities(self) -> str:
-        """展示智能体能力清单"""
         tools = self.tool_registry.list_tools()
+        # Check which have real implementations
+        try:
+            from src.tools.real_tools import has_real_implementation
+            real = {t.name: has_real_implementation(t.name) for t in tools}
+        except ImportError:
+            real = {}
+
         lines = [
-            "╔══════════════════════════════════════════╗",
-            "║     🎨 vivo AI 影像助手 - 能力清单      ║",
-            "╠══════════════════════════════════════════╣",
+            "=" * 55,
+            "  vivo AI Imaging Assistant - Capabilities",
+            "=" * 55,
         ]
         for i, tool in enumerate(tools, 1):
-            emoji_map = {
-                "photo_enhance": "📸", "style_transfer": "🎨",
-                "composition_guide": "📐", "object_remove": "🧹",
-                "portrait_beautify": "✨", "scene_recognize": "🔍",
-                "color_grading": "🎬", "smart_crop": "✂️",
-                "ai_expand": "🔲", "motion_photo": "🎬"
-            }
-            emoji = emoji_map.get(tool.name, "🔧")
-            lines.append(f"║  {i:2d}. {emoji} {tool.name:<20s} - {tool.description[:30]}... ║")
-        lines.append("╚══════════════════════════════════════════╝")
+            is_real = real.get(tool.name, False)
+            badge = "[REAL]" if is_real else "[DEMO]"
+            emoji = {
+                "photo_enhance": "enhance", "style_transfer": "style",
+                "composition_guide": "compose", "object_remove": "remove",
+                "portrait_beautify": "beautify", "scene_recognize": "scene",
+                "color_grading": "color", "smart_crop": "crop",
+                "ai_expand": "expand", "motion_photo": "motion",
+            }.get(tool.name, "tool")
+            lines.append(f"  {i:2d}. {badge:7s} {tool.name:<20s} {tool.description[:40]}")
+        lines.append("=" * 55)
+        lines.append(f"  Mode: {'LLM (DeepSeek)' if self.use_llm else 'Rule-based (Demo)'}")
+        lines.append(f"  Total: {len(tools)} tools | Real: {sum(1 for v in real.values() if v)} | Demo: {sum(1 for v in real.values() if not v)}")
+        return "\n".join(lines)
+
+    def check_status(self) -> str:
+        """Check system status"""
+        lines = ["=" * 55, "  System Status Check", "=" * 55]
+
+        # LLM status
+        if self.use_llm:
+            result = self.planner.llm.check_connection()
+            if result["ok"]:
+                lines.append(f"  LLM: OK ({result['provider']}/{result['model']})")
+            else:
+                lines.append(f"  LLM: FAILED - {result.get('error', 'unknown')}")
+        else:
+            lines.append("  LLM: DISABLED (rule-based mode)")
+
+        # Tools status
+        try:
+            from src.tools.real_tools import has_real_implementation
+            tools = self.tool_registry.list_tools()
+            real_count = sum(1 for t in tools if has_real_implementation(t.name))
+            lines.append(f"  Tools: {len(tools)} total, {real_count} real, {len(tools)-real_count} demo")
+        except ImportError:
+            lines.append("  Tools: 10 demo (real_tools.py not found)")
+
+        # HF API status
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()
+        hf_token = os.getenv("HF_API_TOKEN", "")
+        lines.append(f"  HuggingFace API: {'OK (token set)' if hf_token else 'NOT SET (scene recognition uses traditional analysis)'}")
+
+        lines.append("=" * 55)
         return "\n".join(lines)
 
 
-def demo_mode():
-    """演示模式 - 展示智能体的各种能力"""
-    agent = VivoImagingAgent()
+# ============================================================
+# CLI
+# ============================================================
 
-    print("=" * 70)
-    print("  vivo AI 影像助手 - 智能体演示")
-    print("  赛道: 手机AI助手，未来AI影像体验设计")
-    print("=" * 70)
-    print()
+def interactive_mode(use_llm: bool = False):
+    agent = VivoImagingAgent(use_llm=use_llm)
 
-    # 展示能力
-    print(agent.show_capabilities())
-    print()
-
-    # 演示场景
-    demos = [
-        ("📸 场景1: 摄影帮助", "我在拍城市夜景，帮我看看构图怎么样"),
-        ("🎨 场景2: 风格转换", "帮我把这张照片变成赛博朋克风格"),
-        ("🧹 场景3: 物体消除", "帮我把背景里的路人都消掉"),
-        ("✨ 场景4: 人像美化", "帮我美颜一下，要自然一点的"),
-        ("🔍 场景5: 场景识别", "看看这是什么场景，该用什么模式拍？"),
-        ("🆘 场景6: 功能询问", "你能帮我做些什么？"),
-    ]
-
-    for title, query in demos:
-        print(f"\n{'='*50}")
-        print(f"  {title}")
-        print(f"  用户: {query}")
-        print(f"{'='*50}")
-
-        response = agent.chat(query)
-        print(f"\n  小V: {response}")
-        print()
-
-        import time
-        time.sleep(0.5)
-
-    print("\n" + "=" * 70)
-    print("  演示完成！智能体已展示了感知-思考-规划-执行-反思全链路")
-    print("=" * 70)
-
-
-def interactive_mode():
-    """交互模式 - 与智能体实时对话"""
-    agent = VivoImagingAgent()
-
-    print("=" * 60)
-    print("  🎨 vivo AI 影像助手 - 小V")
-    print("  输入 'help' 查看帮助 | 'demo' 演示 | 'quit' 退出")
-    print("=" * 60)
+    mode_label = "LLM (DeepSeek)" if use_llm else "Rule-based"
+    print("=" * 55)
+    print(f"  vivo AI Imaging Assistant - XiaoV [{mode_label}]")
+    print("  Type 'help' | 'demo' | 'check' | 'quit'")
+    print("=" * 55)
     print()
 
     while True:
         try:
-            user_input = input("👤 你: ").strip()
+            user_input = input("You: ").strip()
             if not user_input:
                 continue
 
-            if user_input.lower() in ['quit', 'exit', 'q', '退出']:
-                print("👋 小V: 再见！期待下次为你服务~")
+            if user_input.lower() in ['quit', 'exit', 'q']:
+                print("XiaoV: Goodbye!")
                 break
 
             if user_input.lower() == 'help':
                 print(agent.show_capabilities())
-                print("\n试试对我说：")
-                print('  "帮我把照片变清晰"')
-                print('  "转换成动漫风格"')
-                print('  "帮我看看构图"')
-                print('  "消除照片里的路人"')
-                print('  "帮我美颜一下"')
+                print("\nTry saying:")
+                print('  "What scene is this?" (with image)')
+                print('  "Enhance this photo"')
+                print('  "Convert to anime style"')
+                print('  "Check my composition"')
+                print('  "Remove passersby from background"')
                 continue
 
             if user_input.lower() == 'demo':
-                demo_mode()
+                demo_mode(use_llm)
                 continue
 
-            # 检查是否包含图片路径
+            if user_input.lower() == 'check':
+                print(agent.check_status())
+                continue
+
+            # Handle image path prefix
             image_path = None
             if user_input.startswith("img:"):
                 parts = user_input.split(" ", 1)
                 image_path = parts[0][4:]
-                user_input = parts[1] if len(parts) > 1 else "帮我分析一下这张照片"
+                user_input = parts[1] if len(parts) > 1 else "Analyze this photo"
 
             response = agent.chat(user_input, image_path)
-            print(f"\n🤖 小V: {response}\n")
+            print(f"\nXiaoV: {response}\n")
 
         except KeyboardInterrupt:
-            print("\n👋 小V: 再见！")
+            print("\nXiaoV: Goodbye!")
             break
         except Exception as e:
-            print(f"\n❌ 出错了: {e}")
+            print(f"\nError: {e}")
+
+
+def demo_mode(use_llm: bool = False):
+    agent = VivoImagingAgent(use_llm=use_llm)
+
+    mode_label = "LLM (DeepSeek)" if use_llm else "Rule-based"
+    print("=" * 55)
+    print(f"  vivo AI Imaging Assistant - Demo [{mode_label}]")
+    print("=" * 55)
+    print()
+
+    print(agent.show_capabilities())
+    print()
+
+    demos = [
+        ("Scene Recognition", "What kind of scene is this? What mode should I use?"),
+        ("Composition Help", "I'm shooting a city night scene, how's my composition?"),
+        ("Style Transfer", "Convert this photo to cyberpunk style"),
+        ("Object Removal", "Remove the passersby from the background"),
+        ("Portrait Beautify", "Beautify this portrait naturally"),
+        ("Enhancement", "What can you help me with?"),
+    ]
+
+    for title, query in demos:
+        print(f"\n{'='*50}")
+        print(f"  [{title}]")
+        print(f"  User: {query}")
+        print(f"{'='*50}")
+
+        response = agent.chat(query)
+        print(f"\n  XiaoV: {response}")
+        print()
+
+        import time
+        time.sleep(0.3)
+
+    print("\n" + "=" * 55)
+    print("  Demo complete! Agent showcased Think-Plan-Execute-Reflect pipeline")
+    print("=" * 55)
 
 
 if __name__ == "__main__":
-    if "--demo" in sys.argv:
-        demo_mode()
+    use_llm = "--llm" in sys.argv
+
+    if "--check" in sys.argv:
+        agent = VivoImagingAgent(use_llm=use_llm)
+        print(agent.check_status())
+    elif "--demo" in sys.argv:
+        demo_mode(use_llm)
     elif "--query" in sys.argv:
         query_idx = sys.argv.index("--query")
         if query_idx + 1 < len(sys.argv):
             query = sys.argv[query_idx + 1]
-            agent = VivoImagingAgent()
+            agent = VivoImagingAgent(use_llm=use_llm)
             print(agent.chat(query))
         else:
-            print("请提供查询内容: --query '你的问题'")
+            print("Usage: --query 'your question'")
     else:
-        interactive_mode()
+        interactive_mode(use_llm)

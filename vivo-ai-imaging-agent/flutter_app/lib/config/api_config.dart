@@ -1,21 +1,70 @@
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 /// API 配置
 /// 小V影像助手后端接口配置
-class ApiConfig {
-  // ---- 后端地址 ----
-  // 本地开发
-  static const String localBaseUrl = 'http://10.0.2.2:8000'; // Android 模拟器 → 宿主机
-  static const String localBaseUrlIOS = 'http://localhost:8000';
+class ApiConfig extends ChangeNotifier {
+  static final ApiConfig _instance = ApiConfig._();
+  factory ApiConfig() => _instance;
+  ApiConfig._();
 
-  // 生产环境 (vivo 云测平台 - 复赛开放)
-  static const String vivoCloudBaseUrl = 'https://api.vivo.com.cn/imaging-agent/v1';
+  // ---- SharedPreferences key ----
+  static const String _keyServerUrl = 'server_url';
 
-  // ---- 当前环境 ----
-  static String get baseUrl => localBaseUrl;
+  // ---- 预设地址 ----
+  static const String emulatorUrl = 'http://10.0.2.2:8000'; // Android 模拟器专用
+  static const String localhostUrl = 'http://localhost:8000'; // iOS 模拟器 / Web
+  static const String vivoCloudUrl = 'https://api.vivo.com.cn/imaging-agent/v1';
+
+  // ---- 当前服务器地址 ----
+  String? _customUrl; // null = 使用默认
+  bool _initialized = false;
+
+  /// 当前 baseUrl
+  String get baseUrl {
+    if (_customUrl != null && _customUrl!.isNotEmpty) return _customUrl!;
+    // 真机默认用 emulatorUrl (会失败, 提示用户配置)
+    // iOS 模拟器可用 localhost
+    return emulatorUrl;
+  }
+
+  set baseUrl(String url) {
+    _customUrl = url;
+    notifyListeners();
+    _save();
+  }
+
+  bool get isCustomUrl => _customUrl != null && _customUrl!.isNotEmpty;
+
+  /// 从 SharedPreferences 加载已保存的地址
+  Future<void> init() async {
+    if (_initialized) return;
+    final prefs = await SharedPreferences.getInstance();
+    _customUrl = prefs.getString(_keyServerUrl);
+    _initialized = true;
+    notifyListeners();
+  }
+
+  Future<void> _save() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_customUrl != null && _customUrl!.isNotEmpty) {
+      await prefs.setString(_keyServerUrl, _customUrl!);
+    } else {
+      await prefs.remove(_keyServerUrl);
+    }
+  }
+
+  /// 重置为默认地址
+  Future<void> reset() async {
+    _customUrl = null;
+    notifyListeners();
+    await _save();
+  }
 
   // ---- API 端点 ----
   static const String chatEndpoint = '/chat';
   static const String chatWithImageEndpoint = '/chat/image';
-  static const String toolStatusEndpoint = '/tools/status';
+  static const String healthEndpoint = '/health';
   static const String capabilitiesEndpoint = '/capabilities';
 
   // ---- 工具列表 (端侧可用) ----
@@ -33,7 +82,7 @@ class ApiConfig {
   ];
 
   // ---- LLM 配置 ----
-  static const String llmProvider = 'deepseek'; // deepseek / vivo
+  static const String llmProvider = 'deepseek';
   static const String llmModel = 'deepseek-chat';
 
   // ---- 超时 ----

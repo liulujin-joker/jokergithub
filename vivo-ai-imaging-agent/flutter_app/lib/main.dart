@@ -4,8 +4,10 @@ import 'providers/chat_provider.dart';
 import 'screens/chat_screen.dart';
 import 'config/api_config.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 加载已保存的服务器地址
+  await ApiConfig().init();
   runApp(const VivoImagingApp());
 }
 

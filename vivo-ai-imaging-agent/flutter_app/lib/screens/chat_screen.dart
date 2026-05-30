@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/chat_provider.dart';
 import '../config/api_config.dart';
+import '../services/agent_service.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/tool_card.dart';
 import '../widgets/capability_grid.dart';
@@ -88,6 +89,11 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: '服务器设置',
+            onPressed: () => _showServerSettings(context),
+          ),
           IconButton(
             icon: const Icon(Icons.grid_view_rounded),
             tooltip: '能力清单',
@@ -325,6 +331,151 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  void _showServerSettings(BuildContext context) {
+    final config = ApiConfig();
+    final controller = TextEditingController(text: config.baseUrl);
+    final focusNode = FocusNode();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1A1A25),
+            title: const Row(
+              children: [
+                Icon(Icons.dns, color: Color(0xFF6366F1), size: 22),
+                SizedBox(width: 8),
+                Text('服务器设置', style: TextStyle(fontSize: 18)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '输入后端服务器地址:',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  style: const TextStyle(fontSize: 14, fontFamily: 'monospace'),
+                  decoration: InputDecoration(
+                    hintText: 'http://192.168.1.100:8000',
+                    hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        controller.clear();
+                        setDialogState(() {});
+                      },
+                    ),
+                  ),
+                  onChanged: (_) => setDialogState(() {}),
+                ),
+                const SizedBox(height: 12),
+                // Preset buttons
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _PresetChip('模拟器', ApiConfig.emulatorUrl, controller, () => setDialogState(() {})),
+                    _PresetChip('本机', ApiConfig.localhostUrl, controller, () => setDialogState(() {})),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Test connection button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.wifi_find, size: 18),
+                    label: const Text('测试连接', style: TextStyle(fontSize: 13)),
+                    onPressed: () async {
+                      final testUrl = controller.text.trim();
+                      if (testUrl.isEmpty) return;
+
+                      // 保存原始地址，测试时临时切换
+                      final originalUrl = config.baseUrl;
+                      config.baseUrl = testUrl;
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('⏳ 正在测试连接...'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+
+                      final service = AgentService();
+                      final ok = await service.testConnection();
+
+                      // 恢复原始地址 (用户需点"保存"才会正式修改)
+                      config.baseUrl = originalUrl;
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(ok
+                                ? '✅ 连接成功！点击"保存"即可使用此地址'
+                                : '❌ 连接失败，请检查地址和网络'),
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  config.isCustomUrl
+                      ? '✅ 当前使用自定义地址'
+                      : '⚠️ 使用默认地址 (${ApiConfig.emulatorUrl})\n  真机请改为电脑 IP',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: config.isCustomUrl ? Colors.green : Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await config.reset();
+                  if (context.mounted) Navigator.pop(ctx);
+                },
+                child: const Text('重置默认', style: TextStyle(color: Colors.grey)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('取消', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                ),
+                onPressed: () {
+                  final url = controller.text.trim();
+                  if (url.isNotEmpty) {
+                    config.baseUrl = url;
+                  }
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('✅ 服务器地址已更新: ${config.baseUrl}'),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: const Text('保存'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _showCapabilities(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -413,6 +564,35 @@ class _QuickChip extends StatelessWidget {
       backgroundColor: const Color(0xFF1E1E30),
       side: const BorderSide(color: Color(0xFF2A2A40)),
       padding: const EdgeInsets.symmetric(horizontal: 4),
+    );
+  }
+}
+
+class _PresetChip extends StatelessWidget {
+  final String label;
+  final String url;
+  final TextEditingController controller;
+  final VoidCallback onChanged;
+
+  const _PresetChip(this.label, this.url, this.controller, this.onChanged);
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      onPressed: () {
+        controller.text = url;
+        onChanged();
+      },
+      backgroundColor: controller.text == url
+          ? const Color(0xFF6366F1).withOpacity(0.15)
+          : const Color(0xFF1E1E30),
+      side: BorderSide(
+        color: controller.text == url
+            ? const Color(0xFF6366F1)
+            : const Color(0xFF2A2A40),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
     );
   }
 }

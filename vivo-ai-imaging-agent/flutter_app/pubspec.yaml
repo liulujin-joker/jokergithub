@@ -1,0 +1,38 @@
+name: vivo_imaging_app
+description: 小V影像助手 - vivo AI 影像智能体 Flutter 客户端
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  # 状态管理
+  provider: ^6.1.1
+  # 网络请求
+  http: ^1.2.0
+  dio: ^5.4.0
+  # 图片处理
+  image_picker: ^1.0.7
+  cached_network_image: ^3.3.1
+  # UI
+  flutter_markdown: ^0.6.20
+  shimmer: ^3.0.0
+  # 存储
+  shared_preferences: ^2.2.2
+  # 工具
+  intl: ^0.19.0
+  path_provider: ^2.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

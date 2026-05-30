@@ -287,7 +287,7 @@
 <!-- Hero -->
 <section class="hero">
     <div class="hero-content">
-        <div class="v2-badge">🆕 v2.0 · LLM驱动 · 8/10工具真实实现</div>
+        <div class="v2-badge">🆕 v2.0 · LLM驱动 · 8/10工具真实实现 · Android APK</div>
         <h1>🤖 小V影像助手</h1>
         <p class="subtitle">
             手机AI助手 · 未来AI影像体验设计<br>
@@ -300,6 +300,7 @@
         <br><br>
         <a href="https://github.com/liulujin-joker/jokergithub/tree/master/vivo-ai-imaging-agent" class="run-btn">📂 查看源码</a>
         <a href="#demo" class="run-btn ghost">▶ 在线演示</a>
+        <a href="https://github.com/liulujin-joker/jokergithub/releases/latest" class="run-btn" style="background:linear-gradient(135deg,#22c55e,#16a34a);">📱 下载 APK</a>
     </div>
 </section>
 
@@ -487,8 +488,11 @@
     <div class="code-block">
 vivo-ai-imaging-agent/
 ├── <span class="fn">main.py</span>              <span class="cmt"># 👈 智能体主体 (支持 --llm)</span>
+├── <span class="fn">server/api_server.py</span>  <span class="cmt"># 🆕 FastAPI 后端服务</span>
 ├── requirements.txt
 ├── .env.example            <span class="cmt"># API Key 配置模板</span>
+├── <span class="fn">flutter_app/</span>            <span class="cmt"># 📱 Flutter 移动端 (Dart/Android/Web)</span>
+├── <span class="fn">mobile_app/</span>             <span class="cmt"># 📱 独立APK版 (含连接界面)</span>
 ├── config/
 │   └── settings.py         <span class="cmt"># 模型/工具/记忆 全配置</span>
 ├── src/
@@ -508,6 +512,37 @@ vivo-ai-imaging-agent/
 │   ├── models/schemas.py    <span class="cmt"># 数据模型</span>
 │   └── utils/               <span class="cmt"># 日志/图像工具</span>
 └── docs/DESIGN.md           <span class="cmt"># 🆕 完整设计文档 (含v2.0更新)</span>
+    </div>
+</section>
+
+<!-- 产物 -->
+<section class="section" style="background:rgba(34,197,94,0.03);">
+    <h2>📦 发布产物</h2>
+    <div class="tool-grid">
+        <div class="tool-card" style="border-color:rgba(34,197,94,0.3);">
+            <div class="t-emoji">📱</div>
+            <div class="t-name">Android APK <span class="t-badge badge-real">v2.0</span></div>
+            <div class="t-desc">47MB · Flutter编译 · 连接PC后端<br>支持图片上传、工具调用、LLM对话</div>
+            <span class="t-tag">Release 下载</span>
+        </div>
+        <div class="tool-card" style="border-color:rgba(99,102,241,0.3);">
+            <div class="t-emoji">🌐</div>
+            <div class="t-name">Flutter Web 应用</div>
+            <div class="t-desc">31MB · Chrome/Edge 浏览器<br>PC 直接访问，无需安装</div>
+            <span class="t-tag">build/web</span>
+        </div>
+        <div class="tool-card" style="border-color:rgba(99,102,241,0.3);">
+            <div class="t-emoji">🖥️</div>
+            <div class="t-name">桌面一键启动</div>
+            <div class="t-desc">双击 .bat → 自动启动后端<br>FastAPI + 浏览器聊天界面</div>
+            <span class="t-tag">开箱即用</span>
+        </div>
+        <div class="tool-card" style="border-color:rgba(99,102,241,0.3);">
+            <div class="t-emoji">🔧</div>
+            <div class="t-name">Python 服务端</div>
+            <div class="t-desc">22模块 · 8/10真实工具<br>LLM Function Calling 驱动</div>
+            <span class="t-tag">跨平台</span>
+        </div>
     </div>
 </section>
 
